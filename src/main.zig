@@ -22,7 +22,7 @@ pub fn main() !void {
     const absolute_path = try std.fs.cwd().realpathAlloc(allocator, path);
     defer allocator.free(absolute_path);
 
-    if (!try gif.load(absolute_path)) {
+    if (!try gif.load(allocator, absolute_path)) {
         return;
     }
 

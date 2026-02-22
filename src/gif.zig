@@ -137,7 +137,7 @@ pub const LogicalScreenDescriptor = struct {
 };
 
 /// Loads the GIF file at the given path. 'path' should be absolute.
-pub fn load(path: []const u8) !bool {
+pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     var file = try std.fs.openFileAbsolute(path, .{});
     defer file.close();
 
@@ -151,7 +151,27 @@ pub fn load(path: []const u8) !bool {
     }
 
     const descriptor: LogicalScreenDescriptor = try .init(&reader.interface);
-    std.debug.print("descriptor: {any}\n", .{ descriptor });
+
+    // This block contains a color table, which is a sequence of bytes representing red-green-blue
+    // color triplets. The Global Color Table is used by images without a Local Color Table and by
+    // Plain Text Extensions. Its presence is marked by the Global Color Table Flag being set to 1
+    // in the Logical Screen Descriptor; if present, it immediately follows the Logical Screen
+    // Descriptor and contains a number of bytes equal to:
+    //
+    //             3 x 2^(Size of Global Color Table+1).
+    //
+    // This block is OPTIONAL; at most one Global Color Table may be present per Data Stream.
+    if (descriptor.packed_fields.global_color_table_flag) {
+        const global_color_table_size: usize =
+            @intCast(descriptor.packed_fields.global_color_table_size);
+        const exponent = global_color_table_size + 1;
+        const size = 3 * std.math.pow(usize, 2, exponent);
+
+        const table = try reader.interface.take(size);
+        const global_color_table = try allocator.alloc(u8, size);
+        @memcpy(global_color_table, table);
+        defer allocator.free(global_color_table);
+    }
 
     return true;
 }
