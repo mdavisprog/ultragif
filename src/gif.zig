@@ -119,20 +119,41 @@ pub const LogicalScreenDescriptor = struct {
     /// 1..255 -   Value used in the computation.
     pixel_aspect_ratio: u8,
 
-    pub fn init(reader: *std.Io.Reader) !LogicalScreenDescriptor {
-        const width = try reader.takeInt(u16, .little);
-        const height = try reader.takeInt(u16, .little);
-        const packed_fields = try reader.takeStruct(PackedFields, .little);
-        const background_color_index = try reader.takeByte();
-        const pixel_aspect_ratio = try reader.takeByte();
+    /// This block contains a color table, which is a sequence of bytes representing red-green-blue
+    /// color triplets. The Global Color Table is used by images without a Local Color Table and by
+    /// Plain Text Extensions. Its presence is marked by the Global Color Table Flag being set to 1
+    /// in the Logical Screen Descriptor; if present, it immediately follows the Logical Screen
+    /// Descriptor and contains a number of bytes equal to:
+    ///             3 x 2^(Size of Global Color Table+1).
+    /// This block is OPTIONAL; at most one Global Color Table may be present per Data Stream.
+    global_color_table: ?[]const u8 = null,
 
-        return .{
-            .width = width,
-            .height = height,
-            .packed_fields = packed_fields,
-            .background_color_index = background_color_index,
-            .pixel_aspect_ratio = pixel_aspect_ratio,
-        };
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !LogicalScreenDescriptor {
+        var result: LogicalScreenDescriptor = undefined;
+
+        result.width = try reader.takeInt(u16, .little);
+        result.height = try reader.takeInt(u16, .little);
+        result.packed_fields = try reader.takeStruct(PackedFields, .little);
+        result.background_color_index = try reader.takeByte();
+        result.pixel_aspect_ratio = try reader.takeByte();
+
+        if (result.packed_fields.global_color_table_flag) {
+            const table_size: usize = @intCast(result.packed_fields.global_color_table_size);
+            const size = 3 * std.math.pow(usize, 2, table_size + 1);
+
+            const table = try reader.take(size);
+            const global_color_table = try allocator.alloc(u8, size);
+            @memcpy(global_color_table, table);
+            result.global_color_table = global_color_table;
+        }
+
+        return result;
+    }
+
+    pub fn deinit(self: LogicalScreenDescriptor, allocator: std.mem.Allocator) void {
+        if (self.global_color_table) |table| {
+            allocator.free(table);
+        }
     }
 };
 
@@ -234,8 +255,9 @@ pub const ImageDescriptor = struct {
             const table_size: usize = @intCast(result.packed_fields.local_color_table_size);
             const size = 3 * std.math.pow(usize, 2, table_size + 1);
             const table = try reader.take(size);
-            result.local_color_table = try allocator.alloc(u8, size);
-            @memcpy(result.local_color_table, table);
+            const local_color_table = try allocator.alloc(u8, size);
+            @memcpy(local_color_table, table);
+            result.local_color_table = local_color_table;
         }
 
         return result;
@@ -262,28 +284,9 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
         return false;
     }
 
-    const descriptor: LogicalScreenDescriptor = try .init(&reader.interface);
+    const descriptor: LogicalScreenDescriptor = try .init(&reader.interface, allocator);
+    defer descriptor.deinit(allocator);
 
-    // This block contains a color table, which is a sequence of bytes representing red-green-blue
-    // color triplets. The Global Color Table is used by images without a Local Color Table and by
-    // Plain Text Extensions. Its presence is marked by the Global Color Table Flag being set to 1
-    // in the Logical Screen Descriptor; if present, it immediately follows the Logical Screen
-    // Descriptor and contains a number of bytes equal to:
-    //
-    //             3 x 2^(Size of Global Color Table+1).
-    //
-    // This block is OPTIONAL; at most one Global Color Table may be present per Data Stream.
-    if (descriptor.packed_fields.global_color_table_flag) {
-        const global_color_table_size: usize =
-            @intCast(descriptor.packed_fields.global_color_table_size);
-        const exponent = global_color_table_size + 1;
-        const size = 3 * std.math.pow(usize, 2, exponent);
-
-        const table = try reader.interface.take(size);
-        const global_color_table = try allocator.alloc(u8, size);
-        @memcpy(global_color_table, table);
-        defer allocator.free(global_color_table);
-    }
 
     return true;
 }
