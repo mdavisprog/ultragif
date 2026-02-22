@@ -1,3 +1,4 @@
+const gif = @import("gif.zig");
 const std = @import("std");
 
 pub fn main() !void {
@@ -18,27 +19,12 @@ pub fn main() !void {
     }
 
     const path = args[1];
-    var file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+    const absolute_path = try std.fs.cwd().realpathAlloc(allocator, path);
+    defer allocator.free(absolute_path);
 
-    var buffer: [4096]u8 = undefined;
-    var reader = file.reader(&buffer);
-
-    readGIF(&reader.interface) catch |err| {
-        std.debug.print("Given file '{s}' is not a valid GIF. Error: {}", .{ path, err });
+    if (!try gif.load(absolute_path)) {
         return;
-    };
+    }
 
     std.debug.print("Successfully loaded GIF file '{s}'.", .{path});
-}
-
-const Error = error{
-    InvalidSignature,
-};
-
-fn readGIF(reader: *std.Io.Reader) !void {
-    const signature = try reader.takeArray(6);
-    if (!std.mem.eql(u8, signature, "GIF87a") and !std.mem.eql(u8, signature, "GIF89a")) {
-        return Error.InvalidSignature;
-    }
 }
