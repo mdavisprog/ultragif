@@ -136,6 +136,118 @@ pub const LogicalScreenDescriptor = struct {
     }
 };
 
+/// Each image in the Data Stream is composed of an Image Descriptor, an optional Local Color
+/// Table, and the image data.  Each image must fit within the boundaries of the Logical Screen,
+/// as defined in the Logical Screen Descriptor.
+///
+/// The Image Descriptor contains the parameters necessary to process a table based image. The
+/// coordinates given in this block refer to coordinates within the Logical Screen, and are given
+/// in pixels. This block is a Graphic-Rendering Block, optionally preceded by one or more Control
+/// blocks such as the Graphic Control Extension, and may be optionally followed by a Local Color
+/// Table; the Image Descriptor is always followed by the image data.
+///
+/// This block is REQUIRED for an image.  Exactly one Image Descriptor must be present per image in
+/// the Data Stream.  An unlimited number of images may be present per Data Stream.
+pub const ImageDescriptor = struct {
+    pub const PackedFields = packed struct {
+        /// If the Local Color Table Flag is set to 1, the value in this field is used to calculate
+        /// the number of bytes contained in the Local Color Table. To determine that actual size
+        /// of the color table, raise 2 to the value of the field + 1. This value should be 0 if
+        /// there is no Local Color Table specified.
+        local_color_table_size: u3,
+
+        /// TBD
+        reserved: u2,
+
+        /// Indicates whether the Local Color Table is sorted.  If the flag is set, the Local Color
+        /// Table is sorted, in order of decreasing importance. Typically, the order would be
+        /// decreasing frequency, with most frequent color first. This assists a decoder, with
+        /// fewer available colors, in choosing the best subset of colors; the decoder may use an
+        /// initial segment of the table to render the graphic.
+        ///
+        /// Values :    0 -   Not ordered.
+        ///             1 -   Ordered by decreasing importance, most
+        ///                   important color first.
+        sort_flag: bool,
+
+        /// Indicates if the image is interlaced. An image is interlaced in a four-pass interlace
+        /// pattern; see Appendix E for details.
+        ///
+        /// Values :    0 - Image is not interlaced.
+        ///             1 - Image is interlaced.
+        interlace_flag: bool,
+
+        /// Indicates the presence of a Local Color Table immediately following this Image
+        /// Descriptor.
+        ///
+        ///
+        /// Values :    0 -   Local Color Table is not present. Use
+        ///                   Global Color Table if available.
+        ///             1 -   Local Color Table present, and to follow
+        ///                   immediately after this Image Descriptor.
+        local_color_table_flag: bool,
+    };
+
+    /// Identifies the beginning of an Image Descriptor. This field contains the fixed value 0x2C.
+    image_separator: u8,
+
+    /// Column number, in pixels, of the left edge of the image, with respect to the left edge of
+    /// the Logical Screen. Leftmost column of the Logical Screen is 0.
+    image_left_position: u16,
+
+    /// Row number, in pixels, of the top edge of the image with respect to the top edge of the
+    /// Logical Screen. Top row of the Logical Screen is 0.
+    image_top_position: u16,
+
+    /// Width of the image in pixels.
+    image_width: u16,
+
+    /// Height of the image in pixels.
+    image_height: u16,
+
+    /// See documentation for PackedFields.
+    packed_fields: PackedFields,
+
+    /// This block contains a color table, which is a sequence of bytes representing red-green-blue
+    /// color triplets. The Local Color Table is used by the image that immediately follows. Its
+    /// presence is marked by the Local Color Table Flag being set to 1 in the Image Descriptor; if
+    /// present, the Local Color Table immediately follows the Image Descriptor and contains a
+    /// number of bytes equal to
+    ///                       3x2^(Size of Local Color Table+1).
+    /// If present, this color table temporarily becomes the active color table and the following
+    /// image should be processed using it. This block is OPTIONAL; at most one Local Color Table
+    /// may be present per Image Descriptor and its scope is the single image associated with the
+    /// Image Descriptor that precedes it.
+    local_color_table: ?[]const u8 = null,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageDescriptor {
+        var result: ImageDescriptor = undefined;
+
+        result.image_separator = try reader.takeByte();
+        result.image_left_position = try reader.takeInt(u16, .little);
+        result.image_top_position = try reader.takeInt(u16, .little);
+        result.image_width = try reader.takeInt(u16, .little);
+        result.image_height = try reader.takeInt(u16, .little);
+        result.packed_fields = try reader.takeStruct(PackedFields, .little);
+
+        if (result.packed_fields.local_color_table_flag) {
+            const table_size: usize = @intCast(result.packed_fields.local_color_table_size);
+            const size = 3 * std.math.pow(usize, 2, table_size + 1);
+            const table = try reader.take(size);
+            result.local_color_table = try allocator.alloc(u8, size);
+            @memcpy(result.local_color_table, table);
+        }
+
+        return result;
+    }
+
+    pub fn deinit(self: *ImageDescriptor, allocator: std.mem.Allocator) void {
+        if (self.local_color_table) |table| {
+            allocator.free(table);
+        }
+    }
+};
+
 /// Loads the GIF file at the given path. 'path' should be absolute.
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     var file = try std.fs.openFileAbsolute(path, .{});
