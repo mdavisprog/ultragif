@@ -188,6 +188,46 @@ pub const DataSubBlock = struct {
     }
 };
 
+/// The image data for a table based image consists of a sequence of sub-blocks, of size at most
+/// 255 bytes each, containing an index into the active color table, for each pixel in the image.
+/// Pixel indices are in order of left to right and from top to bottom.  Each index must be within
+/// the range of the size of the active color table, starting at 0. The sequence of indices is
+/// encoded using the LZW Algorithm with variable-length code, as described in Appendix F.
+pub const ImageData = struct {
+    /// This byte determines the initial number of bits used for LZW codes in the image data, as
+    /// described in Appendix F.
+    lzw_minimum_code_size: u8,
+
+    /// Compressed data blocks that represents this image.
+    image_data: []const DataSubBlock,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageData {
+        var result: ImageData = undefined;
+        result.lzw_minimum_code_size = try reader.takeByte();
+
+        var image_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        while (try DataSubBlock.init(reader, allocator)) |data| {
+            try image_data.append(allocator, data);
+        }
+        result.image_data = try image_data.toOwnedSlice(allocator);
+
+        return result;
+    }
+
+    pub fn format(self: ImageData, writer: *std.Io.Writer) !void {
+        try writer.print("\nlzw_minimum_code_size: {}\n", .{self.lzw_minimum_code_size});
+
+        var total_size: usize = 0;
+        for (self.image_data) |data| {
+            total_size += @as(usize, @intCast(data.block_size));
+        }
+        try writer.print("image_data blocks: {} total size: {}", .{
+            self.image_data.len,
+            total_size,
+        });
+    }
+};
+
 /// Each image in the Data Stream is composed of an Image Descriptor, an optional Local Color
 /// Table, and the image data.  Each image must fit within the boundaries of the Logical Screen,
 /// as defined in the Logical Screen Descriptor.
@@ -240,9 +280,6 @@ pub const ImageDescriptor = struct {
         local_color_table_flag: bool,
     };
 
-    /// Identifies the beginning of an Image Descriptor. This field contains the fixed value 0x2C.
-    image_separator: u8,
-
     /// Column number, in pixels, of the left edge of the image, with respect to the left edge of
     /// the Logical Screen. Leftmost column of the Logical Screen is 0.
     image_left_position: u16,
@@ -272,10 +309,12 @@ pub const ImageDescriptor = struct {
     /// Image Descriptor that precedes it.
     local_color_table: ?[]const u8 = null,
 
+    /// Raw compressed image data.
+    image_data: ImageData,
+
     pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageDescriptor {
         var result: ImageDescriptor = undefined;
 
-        result.image_separator = try reader.takeByte();
         result.image_left_position = try reader.takeInt(u16, .little);
         result.image_top_position = try reader.takeInt(u16, .little);
         result.image_width = try reader.takeInt(u16, .little);
@@ -290,13 +329,29 @@ pub const ImageDescriptor = struct {
             result.local_color_table = null;
         }
 
+        result.image_data = try .init(reader, allocator);
+
         return result;
     }
 
-    pub fn deinit(self: *ImageDescriptor, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: ImageDescriptor, allocator: std.mem.Allocator) void {
         if (self.local_color_table) |table| {
             allocator.free(table);
         }
+    }
+
+    pub fn format(self: ImageDescriptor, writer: *std.Io.Writer) !void {
+        try writer.print("\nimage_left_position: {}\n", .{self.image_left_position});
+        try writer.print("image_top_position: {}\n", .{self.image_top_position});
+        try writer.print("image_width: {}\n", .{self.image_width});
+        try writer.print("image_height: {}\n", .{self.image_height});
+        try writer.print("local_color_table_size: {}\n", .{self.packed_fields.local_color_table_size});
+        try writer.print("sort_flag: {}\n", .{self.packed_fields.sort_flag});
+        try writer.print("interlace_flag: {}\n", .{self.packed_fields.interlace_flag});
+        try writer.print("local_color_table_flag: {}\n", .{self.packed_fields.local_color_table_flag});
+        const len = if (self.local_color_table) |table| table.len else 0;
+        try writer.print("local_color_table: {} bytes", .{len});
+        try writer.print("image_data: {f}\n", .{self.image_data});
     }
 };
 
@@ -375,6 +430,17 @@ pub const GraphicControlExtension = struct {
 
         return result;
     }
+
+    pub fn format(self: GraphicControlExtension, writer: *std.Io.Writer) !void {
+        try writer.print(
+            "\ntransparency_color_flag: {}\n",
+            .{self.packed_fields.transparency_color_flag},
+        );
+        try writer.print("user_input_flag: {}\n", .{self.packed_fields.user_input_flag});
+        try writer.print("disposal_method: {}\n", .{self.packed_fields.disposal_method});
+        try writer.print("delay_time: {}\n", .{self.delay_time});
+        try writer.print("transparency_color_index: {}", .{self.transparency_color_index});
+    }
 };
 
 /// The Application Extension contains application-specific information; it conforms with the
@@ -435,12 +501,18 @@ pub const ApplicationExtension = struct {
     }
 
     pub fn format(self: ApplicationExtension, writer: *std.io.Writer) !void {
-        try writer.print("block_size: {d}\n", .{self.block_size});
+        try writer.print("\nblock_size: {d}\n", .{self.block_size});
         try writer.print("application_identifier: {s}\n", .{self.application_identifier});
         try writer.print(
             "application_authentication_code: {s}",
             .{self.application_authentication_code},
         );
+        if (self.application_data) |application_data| {
+            try writer.print("\napplication_data: {}", .{application_data.len});
+            for (application_data) |data| {
+                try writer.print("\nblock_size: {}", .{data.block_size});
+            }
+        }
     }
 };
 
@@ -463,34 +535,40 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     const descriptor: LogicalScreenDescriptor = try .init(&reader.interface, allocator);
     defer descriptor.deinit(allocator);
 
-    var label = Label.init(try reader.interface.takeByte()) orelse {
+    var label = try getNextLabel(&reader.interface) orelse {
         std.debug.print("Failed to read GIF file after logical screen descriptor!", .{});
         return false;
     };
 
     sw: switch (label) {
         .extension => {
-            const extension_byte = try reader.interface.takeByte();
-            const extension: ExtensionType = .init(extension_byte);
-            switch (extension) {
+            var extension = try getNextExtension(&reader.interface) orelse break :sw;
+            ext_sw: switch (extension) {
                 .application => {
                     const application: ApplicationExtension = try .init(
                         &reader.interface,
                         allocator,
                     );
                     defer application.deinit(allocator);
-                    std.debug.print("application: {f}\n", .{application});
+                    std.debug.print("=== application: {f}\n", .{application});
                 },
-                else => {
-                    std.debug.print("Unhandled extension type: 0x{x}\n", .{extension_byte});
+                .graphic_control => {
+                    const graphic_control: GraphicControlExtension = try .init(&reader.interface);
+                    std.debug.print("=== graphic control: {f}\n", .{graphic_control});
+                    extension = try getNextExtension(&reader.interface) orelse break :ext_sw;
+                    continue :ext_sw extension;
+                },
+                .image_descriptor => {
+                    const image_descriptor: ImageDescriptor = try .init(
+                        &reader.interface,
+                        allocator,
+                    );
+                    defer image_descriptor.deinit(allocator);
+                    std.debug.print("=== image descriptor: {f}\n", .{image_descriptor});
                 },
             }
 
-            const byte = try reader.interface.takeByte();
-            label = Label.init(byte) orelse {
-                std.debug.print("Invalid label type: 0x{x}\n", .{byte});
-                break :sw;
-            };
+            label = try getNextLabel(&reader.interface) orelse break :sw;
             continue :sw label;
         },
         .trailer => {
@@ -499,6 +577,22 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     }
 
     return true;
+}
+
+fn getNextLabel(reader: *std.Io.Reader) !?Label {
+    const byte = try reader.takeByte();
+    return Label.init(byte) orelse {
+        std.debug.print("Invalid label type: 0x{x}\n", .{byte});
+        return null;
+    };
+}
+
+fn getNextExtension(reader: *std.Io.Reader) !?ExtensionType {
+    const byte = try reader.takeByte();
+    return ExtensionType.init(byte) orelse {
+        std.debug.print("Invalid extension type: 0x{x}\n", .{byte});
+        return null;
+    };
 }
 
 const Label = enum(u8) {
@@ -519,7 +613,7 @@ const ExtensionType = enum(u8) {
     graphic_control = 0xF9,
     application = 0xFF,
 
-    fn init(byte: u8) ExtensionType {
-        return @enumFromInt(byte);
+    fn init(byte: u8) ?ExtensionType {
+        return std.enums.fromInt(ExtensionType, byte);
     }
 };
