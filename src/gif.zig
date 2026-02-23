@@ -140,11 +140,9 @@ pub const LogicalScreenDescriptor = struct {
         if (result.packed_fields.global_color_table_flag) {
             const table_size: usize = @intCast(result.packed_fields.global_color_table_size);
             const size = 3 * std.math.pow(usize, 2, table_size + 1);
-
-            const table = try reader.take(size);
-            const global_color_table = try allocator.alloc(u8, size);
-            @memcpy(global_color_table, table);
-            result.global_color_table = global_color_table;
+            result.global_color_table = try reader.readAlloc(allocator, size);
+        } else {
+            result.global_color_table = null;
         }
 
         return result;
@@ -178,9 +176,7 @@ pub const DataSubBlock = struct {
             return null;
         }
 
-        const data_values = try allocator.alloc(u8, @intCast(result.block_size));
-        @memcpy(data_values, try reader.take(@intCast(result.block_size)));
-        result.data_values = data_values;
+        result.data_values = try reader.readAlloc(allocator, @intCast(result.block_size));
 
         return result;
     }
@@ -289,10 +285,9 @@ pub const ImageDescriptor = struct {
         if (result.packed_fields.local_color_table_flag) {
             const table_size: usize = @intCast(result.packed_fields.local_color_table_size);
             const size = 3 * std.math.pow(usize, 2, table_size + 1);
-            const table = try reader.take(size);
-            const local_color_table = try allocator.alloc(u8, size);
-            @memcpy(local_color_table, table);
-            result.local_color_table = local_color_table;
+            result.local_color_table = try reader.readAlloc(allocator, size);
+        } else {
+            result.local_color_table = null;
         }
 
         return result;
