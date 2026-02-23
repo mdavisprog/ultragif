@@ -157,6 +157,41 @@ pub const LogicalScreenDescriptor = struct {
     }
 };
 
+/// Data Sub-blocks are units containing data. They do not have a label, these blocks are processed
+/// in the context of control blocks, wherever data blocks are specified in the format. The first
+/// byte of the Data sub-block indicates the number of data bytes to follow. A data sub-block may
+/// contain from 0 to 255 data bytes. The size of the block does not account for the size byte
+/// itself, therefore, the empty sub-block is one whose size field contains 0x00.
+pub const DataSubBlock = struct {
+    /// Number of bytes in the Data Sub-block; the size must be within 0 and 255 bytes, inclusive
+    block_size: u8,
+
+    /// Any 8-bit value. There must be exactly as many Data Values as specified by the Block Size
+    /// field.
+    data_values: ?[]const u8,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !?DataSubBlock {
+        var result: DataSubBlock = undefined;
+
+        result.block_size = try reader.takeByte();
+        if (result.block_size == 0) {
+            return null;
+        }
+
+        const data_values = try allocator.alloc(u8, @intCast(result.block_size));
+        @memcpy(data_values, try reader.take(@intCast(result.block_size)));
+        result.data_values = data_values;
+
+        return result;
+    }
+
+    pub fn deinit(self: DataSubBlock, allocator: std.mem.Allocator) void {
+        if (self.data_values) |data_values| {
+            allocator.free(data_values);
+        }
+    }
+};
+
 /// Each image in the Data Stream is composed of an Image Descriptor, an optional Local Color
 /// Table, and the image data.  Each image must fit within the boundaries of the Logical Screen,
 /// as defined in the Logical Screen Descriptor.
@@ -363,7 +398,10 @@ pub const ApplicationExtension = struct {
     /// application owning the Application Extension.
     application_authentication_code: [3]u8,
 
-    pub fn init(reader: *std.Io.Reader) !ApplicationExtension {
+    /// May contain 0 or more data blocks.
+    application_data: ?[]const DataSubBlock,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ApplicationExtension {
         var result: ApplicationExtension = undefined;
 
         result.block_size = try reader.takeByte();
@@ -379,7 +417,26 @@ pub const ApplicationExtension = struct {
             try reader.take(result.application_authentication_code.len),
         );
 
+        var application_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        while (try DataSubBlock.init(reader, allocator)) |data| {
+            try application_data.append(allocator, data);
+        }
+
+        if (application_data.items.len > 0) {
+            result.application_data = try application_data.toOwnedSlice(allocator);
+        }
+
         return result;
+    }
+
+    pub fn deinit(self: ApplicationExtension, allocator: std.mem.Allocator) void {
+        if (self.application_data) |application_data| {
+            for (application_data) |data| {
+                data.deinit(allocator);
+            }
+
+            allocator.free(application_data);
+        }
     }
 
     pub fn format(self: ApplicationExtension, writer: *std.io.Writer) !void {
@@ -411,25 +468,56 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     const descriptor: LogicalScreenDescriptor = try .init(&reader.interface, allocator);
     defer descriptor.deinit(allocator);
 
-    const byte = try reader.interface.takeByte();
+    var label = Label.init(try reader.interface.takeByte()) orelse {
+        std.debug.print("Failed to read GIF file after logical screen descriptor!", .{});
+        return false;
+    };
 
-    // Extension - A protocol block labeled by the Extension Introducer 0x21.
-    if (byte == 0x21) {
-        const extension_byte = try reader.interface.takeByte();
-        const extension: ExtensionType = .init(extension_byte);
-        switch (extension) {
-            .application => {
-                const application: ApplicationExtension = try .init(&reader.interface);
-                std.debug.print("application: {f}\n", .{application});
-            },
-            else => {
-                std.debug.print("Unhandled extension type: 0x{x}\n", .{extension_byte});
-            },
-        }
+    sw: switch (label) {
+        .extension => {
+            const extension_byte = try reader.interface.takeByte();
+            const extension: ExtensionType = .init(extension_byte);
+            switch (extension) {
+                .application => {
+                    const application: ApplicationExtension = try .init(
+                        &reader.interface,
+                        allocator,
+                    );
+                    defer application.deinit(allocator);
+                    std.debug.print("application: {f}\n", .{application});
+                },
+                else => {
+                    std.debug.print("Unhandled extension type: 0x{x}\n", .{extension_byte});
+                },
+            }
+
+            const byte = try reader.interface.takeByte();
+            label = Label.init(byte) orelse {
+                std.debug.print("Invalid label type: 0x{x}\n", .{byte});
+                break :sw;
+            };
+            continue :sw label;
+        },
+        .trailer => {
+            break :sw;
+        },
     }
 
     return true;
 }
+
+const Label = enum(u8) {
+    /// Extension - A protocol block labeled by the Extension Introducer 0x21.
+    extension = 0x21,
+
+    /// This block is a single-field block indicating the end of the GIF Data Stream.  It contains
+    /// the fixed value 0x3B.
+    trailer = 0x3B,
+
+    fn init(byte: u8) ?Label {
+        return std.enums.fromInt(Label, byte);
+    }
+};
 
 const ExtensionType = enum(u8) {
     image_descriptor = 0x2C,
