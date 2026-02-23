@@ -270,6 +270,128 @@ pub const ImageDescriptor = struct {
     }
 };
 
+/// The Graphic Control Extension contains parameters used when processing a graphic rendering
+/// block. The scope of this extension is the first graphic rendering block to follow. The
+/// extension contains only one data sub-block.
+///
+/// This block is OPTIONAL; at most one Graphic Control Extension may precede a graphic rendering
+/// block. This is the only limit to the number of Graphic Control Extensions that may be contained
+/// in a Data Stream.
+pub const GraphicControlExtension = struct {
+    pub const PackedFields = packed struct {
+        /// Indicates whether a transparency index is given in the Transparent Index field.
+        ///
+        /// Values :    0 -   Transparent Index is not given.
+        ///             1 -   Transparent Index is given.
+        transparency_color_flag: bool,
+
+        /// Indicates whether or not user input is expected before continuing. If the flag is set,
+        /// processing will continue when user input is entered. The nature of the User input is
+        /// determined by the application (Carriage Return, Mouse Button Click, etc.).
+        ///
+        /// Values :    0 -   User input is not expected.
+        ///             1 -   User input is expected.
+        ///
+        /// When a Delay Time is used and the User Input Flag is set,processing will continue when
+        /// user input is received or when the delay time expires, whichever occurs first.
+        user_input_flag: bool,
+
+        /// Indicates the way in which the graphic is to be treated after being displayed.
+        ///
+        /// Values :    0 -   No disposal specified. The decoder is not required to take any action.
+        ///             1 -   Do not dispose. The graphic is to be left in place.
+        ///             2 -   Restore to background color. The area used by the graphic must be
+        ///                   restored to the background color.
+        ///             3 -   Restore to previous. The decoder is required to restore the area
+        ///                   overwritten by the graphic with what was there prior to rendering
+        ///                   the graphic.
+        ///           4-7 -   To be defined.
+        disposal_method: u3,
+
+        /// TBD
+        reserved: u3,
+    };
+
+    /// Number of bytes in the block, after the Block Size field and up to but not including the
+    /// Block Terminator.  This field contains the fixed value 4.
+    block_size: u8,
+
+    /// See documentation for PackedFields.
+    packed_fields: PackedFields,
+
+    /// If not 0, this field specifies the number of hundredths (1/100) of a second to wait before
+    /// continuing with the processing of the Data Stream. The clock starts ticking immediately
+    /// after the graphic is rendered. This field may be used in conjunction with the User Input
+    /// Flag field.
+    delay_time: u16,
+
+    /// The Transparency Index is such that when encountered, the corresponding pixel of the
+    /// display device is not modified and processing goes on to the next pixel. The index is
+    /// present if and only if the Transparency Flag is set to 1.
+    transparency_color_index: u8,
+
+    pub fn init(reader: *std.Io.Reader) !GraphicControlExtension {
+        var result: GraphicControlExtension = undefined;
+
+        result.block_size = try reader.takeByte();
+        std.debug.assert(result.block_size == 4);
+
+        result.packed_fields = try reader.takeStruct(PackedFields, .little);
+        result.delay_time = try reader.takeInt(u16, .little);
+        result.transparency_color_index = try reader.takeByte();
+
+        const block_terminator = try reader.takeByte();
+        std.debug.assert(block_terminator == 0);
+
+        return result;
+    }
+};
+
+/// The Application Extension contains application-specific information; it conforms with the
+/// extension block syntax, as described below, and its block label is 0xFF.
+pub const ApplicationExtension = struct {
+    /// Number of bytes in this extension block, following the Block Size field, up to but not
+    /// including the beginning of the Application Data. This field contains the fixed value 11.
+    block_size: u8,
+
+    /// Sequence of eight printable ASCII characters used to identify the application owning the
+    /// Application Extension.
+    application_identifier: [8]u8,
+
+    /// Sequence of three bytes used to authenticate the Application Identifier. An Application
+    /// program may use an algorithm to compute a binary code that uniquely identifies it as the
+    /// application owning the Application Extension.
+    application_authentication_code: [3]u8,
+
+    pub fn init(reader: *std.Io.Reader) !ApplicationExtension {
+        var result: ApplicationExtension = undefined;
+
+        result.block_size = try reader.takeByte();
+        std.debug.assert(result.block_size == 11);
+
+        @memcpy(
+            &result.application_identifier,
+            try reader.take(result.application_identifier.len),
+        );
+
+        @memcpy(
+            &result.application_authentication_code,
+            try reader.take(result.application_authentication_code.len),
+        );
+
+        return result;
+    }
+
+    pub fn format(self: ApplicationExtension, writer: *std.io.Writer) !void {
+        try writer.print("block_size: {d}\n", .{self.block_size});
+        try writer.print("application_identifier: {s}\n", .{self.application_identifier});
+        try writer.print(
+            "application_authentication_code: {s}",
+            .{self.application_authentication_code},
+        );
+    }
+};
+
 /// Loads the GIF file at the given path. 'path' should be absolute.
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
     var file = try std.fs.openFileAbsolute(path, .{});
@@ -284,9 +406,37 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
         return false;
     }
 
+    std.debug.print("GIF version: {s}\n", .{header.version});
+
     const descriptor: LogicalScreenDescriptor = try .init(&reader.interface, allocator);
     defer descriptor.deinit(allocator);
 
+    const byte = try reader.interface.takeByte();
+
+    // Extension - A protocol block labeled by the Extension Introducer 0x21.
+    if (byte == 0x21) {
+        const extension_byte = try reader.interface.takeByte();
+        const extension: ExtensionType = .init(extension_byte);
+        switch (extension) {
+            .application => {
+                const application: ApplicationExtension = try .init(&reader.interface);
+                std.debug.print("application: {f}\n", .{application});
+            },
+            else => {
+                std.debug.print("Unhandled extension type: 0x{x}\n", .{extension_byte});
+            },
+        }
+    }
 
     return true;
 }
+
+const ExtensionType = enum(u8) {
+    image_descriptor = 0x2C,
+    graphic_control = 0xF9,
+    application = 0xFF,
+
+    fn init(byte: u8) ExtensionType {
+        return @enumFromInt(byte);
+    }
+};
