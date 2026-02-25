@@ -1,4 +1,7 @@
+const compression = @import("compression/root.zig");
 const std = @import("std");
+
+const lzw = compression.lzw;
 
 /// The Header identifies the GIF Data Stream in context. The Signature field marks the beginning
 /// of the Data Stream, and the Version field identifies the set of capabilities required of a
@@ -226,6 +229,28 @@ pub const ImageData = struct {
             total_size,
         });
     }
+
+    pub fn totalSize(self: ImageData) usize {
+        var result: usize = 0;
+
+        for (self.image_data) |data| {
+            result += @as(usize, @intCast(data.block_size));
+        }
+
+        return result;
+    }
+
+    pub fn decode(self: ImageData, allocator: std.mem.Allocator, writer: *std.Io.Writer) !void {
+        var decoder: lzw.Decoder(.little) = try .init(allocator, self.lzw_minimum_code_size, 0);
+        defer decoder.deinit();
+
+        for (self.image_data) |data| {
+            if (data.data_values) |block| {
+                var reader: std.Io.Reader = .fixed(block);
+                try decoder.decode(&reader, writer);
+            }
+        }
+    }
 };
 
 /// Each image in the Data Stream is composed of an Image Descriptor, an optional Local Color
@@ -338,6 +363,16 @@ pub const ImageDescriptor = struct {
         if (self.local_color_table) |table| {
             allocator.free(table);
         }
+    }
+
+    pub fn decode(self: ImageDescriptor, allocator: std.mem.Allocator) ![]const u8 {
+        const size: usize = @intCast(self.image_width * self.image_height);
+        const pixels = try allocator.alloc(u8, size);
+        var writer: std.Io.Writer = .fixed(pixels);
+
+        try self.image_data.decode(allocator, &writer);
+
+        return pixels;
     }
 
     pub fn format(self: ImageDescriptor, writer: *std.Io.Writer) !void {
