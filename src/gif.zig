@@ -522,6 +522,91 @@ pub const CommentExtension = struct {
     }
 };
 
+/// The Plain Text Extension contains textual data and the parameters necessary to render that data
+/// as a graphic, in a simple form. The textual data will be encoded with the 7-bit printable ASCII
+/// characters.  Text data are rendered using a grid of character cells defined by the parameters in
+/// the block fields. Each character is rendered in an individual cell. The textual data in this
+/// block is to be rendered as mono-spaced characters, one character per cell, with a best fitting
+/// font and size. For further information, see the section on Recommendations below. The data
+/// characters are taken sequentially from the data portion of the block and rendered within a cell,
+/// starting with the upper left cell in the grid and proceeding from left to right and from top to
+/// bottom. Text data is rendered until the end of data is reached or the character grid is filled.
+/// The Character Grid contains an integral number of cells; in the case that the cell dimensions do
+/// not allow for an integral number, fractional cells must be discarded; an encoder must be careful
+/// to specify the grid dimensions accurately so that this does not happen. This block requires a
+/// Global Color Table to be available; the colors used by this block reference the Global Color Table
+/// in the Stream if there is one, or the Global Color Table from a previous Stream, if one was saved.
+/// This block is a graphic rendering block, therefore it may be modified by a Graphic Control
+/// Extension.  This block is OPTIONAL; any number of them may appear in the Data Stream.
+pub const PlainTextExtension = struct {
+    /// Number of bytes in the extension, after the Block Size field and up to but not including the
+    /// beginning of the data portion. This field contains the fixed value 12.
+    block_size: u8,
+
+    /// Column number, in pixels, of the left edge of the text grid, with respect to the left edge
+    /// of the Logical Screen.
+    text_grid_left_position: u16,
+
+    /// Row number, in pixels, of the top edge of the text grid, with respect to the top edge of
+    /// the Logical Screen.
+    text_grid_top_position: u16,
+
+    /// Width of the text grid in pixels.
+    text_grid_width: u16,
+
+    /// Height of the text grid in pixels.
+    text_grid_height: u16,
+
+    /// Width, in pixels, of each cell in the grid.
+    character_cell_width: u8,
+
+    /// Height, in pixels, of each cell in the grid.
+    character_cell_height: u8,
+
+    /// Index into the Global Color Table to be used to render the text foreground.
+    text_foreground_color_index: u8,
+
+    /// Index into the Global Color Table to be used to render the text background.
+    text_background_color_index: u8,
+
+    /// Sequence of sub-blocks, each of size at most 255 bytes and at least 1 byte, with the size
+    /// in a byte preceding the data.  The end of the sequence is marked by the Block Terminator.
+    plain_text_data: []const DataSubBlock,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !PlainTextExtension {
+        var result: PlainTextExtension = undefined;
+
+        result.block_size = try reader.takeByte();
+        std.debug.assert(result.block_size == 12);
+
+        result.text_grid_left_position = try reader.takeInt(u16, .little);
+        result.text_grid_top_position = try reader.takeInt(u16, .little);
+        result.text_grid_width = try reader.takeInt(u16, .little);
+        result.text_grid_height = try reader.takeInt(u16, .little);
+
+        result.character_cell_width = try reader.takeByte();
+        result.character_cell_height = try reader.takeByte();
+
+        result.text_foreground_color_index = try reader.takeByte();
+        result.text_background_color_index = try reader.takeByte();
+
+        var plain_text_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        while (try DataSubBlock.init(reader, allocator)) |block| {
+            try plain_text_data.append(allocator, block);
+        }
+        result.plain_text_data = try plain_text_data.toOwnedSlice(allocator);
+
+        return result;
+    }
+
+    pub fn deinit(self: PlainTextExtension, allocator: std.mem.Allocator) void {
+        for (self.plain_text_data) |block| {
+            block.deinit(allocator);
+        }
+        allocator.free(self.plain_text_data);
+    }
+};
+
 /// The Application Extension contains application-specific information; it conforms with the
 /// extension block syntax, as described below, and its block label is 0xFF.
 pub const ApplicationExtension = struct {
@@ -613,12 +698,14 @@ pub const GraphicRenderingBlockType = enum {
 
 ///
 pub const GraphicRenderingBlock = union(GraphicRenderingBlockType) {
-    plain_text_extension: void,
+    plain_text_extension: PlainTextExtension,
     image_descriptor: ImageDescriptor,
 
     fn deinit(self: GraphicRenderingBlock, allocator: std.mem.Allocator) void {
         switch (self) {
-            .plain_text_extension => {},
+            .plain_text_extension => |text| {
+                text.deinit(allocator);
+            },
             .image_descriptor => |descriptor| {
                 descriptor.deinit(allocator);
             },
@@ -755,6 +842,18 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
 
                     break :sw;
                 },
+                .plain_text => {
+                    const plain_text_extension: PlainTextExtension = try .init(
+                        &reader.interface,
+                        allocator,
+                    );
+
+                    try blocks.append(allocator, .{
+                        .graphic_rendering = .{
+                            .plain_text_extension = plain_text_extension,
+                        },
+                    });
+                },
                 .comment => {
                     const comment: CommentExtension = try .init(&reader.interface, allocator);
 
@@ -836,6 +935,7 @@ const ExtensionType = enum(u8) {
     image_descriptor = 0x2C,
     graphic_control = 0xF9,
     comment = 0xFE,
+    plain_text = 0x01,
     application = 0xFF,
 
     fn init(byte: u8) ?ExtensionType {
