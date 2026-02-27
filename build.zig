@@ -15,6 +15,9 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
             .root_source_file = b.path("src/main.zig"),
+            .imports = &.{
+                .{ .name = "raylib", .module = raylib.module("raylib") },
+            },
         }),
     });
     exe.linkLibrary(raylib.artifact("raylib"));

@@ -397,6 +397,12 @@ pub fn build(b: *std.Build) !void {
 
     const lib = try compileRaylib(b, target, optimize, Options.getOptions(b));
 
+    _ = b.addModule("raylib", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/raylib.zig"),
+    });
+
     lib.installHeader(b.path("src/raylib.h"), "raylib.h");
     lib.installHeader(b.path("src/raymath.h"), "raymath.h");
     lib.installHeader(b.path("src/rlgl.h"), "rlgl.h");
