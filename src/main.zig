@@ -5,6 +5,8 @@ pub fn main() !void {
     std.debug.print("Hello UltraGIF!\n", .{});
 
     var heap = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer _ = heap.deinit();
+
     const allocator = heap.allocator();
 
     const args = try std.process.argsAlloc(allocator);
@@ -22,9 +24,8 @@ pub fn main() !void {
     const absolute_path = try std.fs.cwd().realpathAlloc(allocator, path);
     defer allocator.free(absolute_path);
 
-    if (!try gif.load(allocator, absolute_path)) {
-        return;
-    }
+    const format = try gif.load(allocator, absolute_path);
+    defer format.deinit(allocator);
 
-    std.debug.print("Successfully loaded GIF file '{s}'.", .{path});
+    std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
 }

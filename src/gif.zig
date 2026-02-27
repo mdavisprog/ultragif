@@ -217,6 +217,12 @@ pub const ImageData = struct {
         return result;
     }
 
+    pub fn deinit(self: ImageData, allocator: std.mem.Allocator) void {
+        for (self.image_data) |block| {
+            block.deinit(allocator);
+        }
+    }
+
     pub fn format(self: ImageData, writer: *std.Io.Writer) !void {
         try writer.print("\nlzw_minimum_code_size: {}\n", .{self.lzw_minimum_code_size});
 
@@ -363,6 +369,8 @@ pub const ImageDescriptor = struct {
         if (self.local_color_table) |table| {
             allocator.free(table);
         }
+
+        self.image_data.deinit(allocator);
     }
 
     pub fn decode(self: ImageDescriptor, allocator: std.mem.Allocator) ![]const u8 {
@@ -551,28 +559,144 @@ pub const ApplicationExtension = struct {
     }
 };
 
+///
+pub const ControlBlockType = enum {
+    graphic_control_extension,
+};
+
+///
+pub const ControlBlock = union(ControlBlockType) {
+    graphic_control_extension: GraphicControlExtension,
+};
+
+///
+pub const GraphicRenderingBlockType = enum {
+    plain_text_extension,
+    image_descriptor,
+};
+
+///
+pub const GraphicRenderingBlock = union(GraphicRenderingBlockType) {
+    plain_text_extension: void,
+    image_descriptor: ImageDescriptor,
+
+    fn deinit(self: GraphicRenderingBlock, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .plain_text_extension => {},
+            .image_descriptor => |descriptor| {
+                descriptor.deinit(allocator);
+            },
+        }
+    }
+};
+
+///
+pub const SpecialPurposeBlockType = enum {
+    trailer,
+    comment_extension,
+    application_extension,
+};
+
+///
+pub const SpecialPurposeBlock = union(SpecialPurposeBlockType) {
+    trailer: void,
+    comment_extension: void,
+    application_extension: ApplicationExtension,
+
+    fn deinit(self: SpecialPurposeBlock, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .trailer => {},
+            .comment_extension => {},
+            .application_extension => |app| {
+                app.deinit(allocator);
+            },
+        }
+    }
+};
+
+/// Blocks can be classified into three groups : Control, Graphic-Rendering and Special Purpose.
+pub const BlockType = enum {
+    /// Control blocks, such as the Header, the Logical Screen Descriptor, the Graphic Control
+    /// Extension and the Trailer, contain information used to control the process of the Data
+    /// Stream or information  used in setting hardware parameters.
+    ///
+    /// The appendix for the GIF file specification lists the Trailer as being under the special
+    /// purpose block. This is where Trailers will be placed for this implementation.
+    control,
+
+    /// Graphic-Rendering blocks such as the Image Descriptor and the Plain Text Extension contain
+    /// information and data used to render a graphic on the display device.
+    graphic_rendering,
+
+    /// Special Purpose blocks such as the Comment Extension and the Application Extension are
+    /// neither used to control the process of the Data Stream nor do they contain information or
+    /// data used to render a graphic on the display device.
+    special_purpose,
+};
+
+pub const Block = union(BlockType) {
+    control: ControlBlock,
+    graphic_rendering: GraphicRenderingBlock,
+    special_purpose: SpecialPurposeBlock,
+
+    fn deinit(self: Block, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .control => {},
+            .graphic_rendering => |block| {
+                block.deinit(allocator);
+            },
+            .special_purpose => |block| {
+                block.deinit(allocator);
+            },
+        }
+    }
+};
+
+/// Represents the collection of objects that form the GIF file.
+pub const Format = struct {
+    header: Header,
+    logical_screen_descriptor: LogicalScreenDescriptor,
+    blocks: []const Block,
+
+    pub fn deinit(self: Format, allocator: std.mem.Allocator) void {
+        self.logical_screen_descriptor.deinit(allocator);
+
+        for (self.blocks) |block| {
+            block.deinit(allocator);
+        }
+        allocator.free(self.blocks);
+    }
+};
+
+pub const Error = error{
+    InvalidHeader,
+    InvalidFormat,
+};
+
 /// Loads the GIF file at the given path. 'path' should be absolute.
-pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
+pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
     var file = try std.fs.openFileAbsolute(path, .{});
     defer file.close();
 
     var buffer: [4096]u8 = undefined;
     var reader = file.reader(&buffer);
 
-    const header: Header = try .init(&reader.interface);
-    if (!header.isValid()) {
+    var result: Format = undefined;
+
+    result.header = try .init(&reader.interface);
+    if (!result.header.isValid()) {
         std.debug.print("Given file '{s}' is not a valid GIF.", .{path});
-        return false;
+        return Error.InvalidHeader;
     }
 
-    std.debug.print("GIF version: {s}\n", .{header.version});
+    result.logical_screen_descriptor = try .init(&reader.interface, allocator);
 
-    const descriptor: LogicalScreenDescriptor = try .init(&reader.interface, allocator);
-    defer descriptor.deinit(allocator);
+    var blocks: std.ArrayListUnmanaged(Block) = .empty;
+    defer blocks.deinit(allocator);
 
     var label = try getNextLabel(&reader.interface) orelse {
         std.debug.print("Failed to read GIF file after logical screen descriptor!", .{});
-        return false;
+        return Error.InvalidFormat;
     };
 
     sw: switch (label) {
@@ -580,16 +704,28 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
             var extension = try getNextExtension(&reader.interface) orelse break :sw;
             ext_sw: switch (extension) {
                 .application => {
-                    const application: ApplicationExtension = try .init(
+                    const application_extension: ApplicationExtension = try .init(
                         &reader.interface,
                         allocator,
                     );
-                    defer application.deinit(allocator);
-                    std.debug.print("=== application: {f}\n", .{application});
+
+                    try blocks.append(allocator, .{
+                        .special_purpose = .{
+                            .application_extension = application_extension,
+                        },
+                    });
+
+                    break :sw;
                 },
                 .graphic_control => {
                     const graphic_control: GraphicControlExtension = try .init(&reader.interface);
-                    std.debug.print("=== graphic control: {f}\n", .{graphic_control});
+
+                    try blocks.append(allocator, .{
+                        .control = .{
+                            .graphic_control_extension = graphic_control,
+                        },
+                    });
+
                     extension = try getNextExtension(&reader.interface) orelse break :ext_sw;
                     continue :ext_sw extension;
                 },
@@ -598,8 +734,12 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
                         &reader.interface,
                         allocator,
                     );
-                    defer image_descriptor.deinit(allocator);
-                    std.debug.print("=== image descriptor: {f}\n", .{image_descriptor});
+
+                    try blocks.append(allocator, .{
+                        .graphic_rendering = .{
+                            .image_descriptor = image_descriptor,
+                        },
+                    });
                 },
             }
 
@@ -611,7 +751,9 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !bool {
         },
     }
 
-    return true;
+    result.blocks = try blocks.toOwnedSlice(allocator);
+
+    return result;
 }
 
 fn getNextLabel(reader: *std.Io.Reader) !?Label {
