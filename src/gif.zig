@@ -486,6 +486,42 @@ pub const GraphicControlExtension = struct {
     }
 };
 
+/// The Comment Extension contains textual information which is not part of the actual graphics in
+/// the GIF Data Stream. It is suitable for including comments about the graphics, credits,
+/// descriptions or any other type of non-control and non-graphic data.  The Comment Extension may
+/// be ignored by the decoder, or it may be saved for later processing; under no circumstances
+/// should a Comment Extension disrupt or interfere with the processing of the Data Stream.
+///
+/// This block is OPTIONAL; any number of them may appear in the Data Stream.
+pub const CommentExtension = struct {
+    /// This block is intended for humans.  It should contain text using the 7-bit ASCII character
+    /// set. This block should not be used to store control information for custom processing.
+    comment_data: []const DataSubBlock,
+
+    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !CommentExtension {
+        std.debug.print("Found CommandExtension\n", .{});
+
+        var data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        while (try DataSubBlock.init(reader, allocator)) |block| {
+            if (block.data_values) |comment| {
+                std.debug.print("   comment: {s}\n", .{comment});
+            }
+            try data.append(allocator, block);
+        }
+
+        return .{
+            .comment_data = try data.toOwnedSlice(allocator),
+        };
+    }
+
+    pub fn deinit(self: CommentExtension, allocator: std.mem.Allocator) void {
+        for (self.comment_data) |data| {
+            data.deinit(allocator);
+        }
+        allocator.free(self.comment_data);
+    }
+};
+
 /// The Application Extension contains application-specific information; it conforms with the
 /// extension block syntax, as described below, and its block label is 0xFF.
 pub const ApplicationExtension = struct {
@@ -600,13 +636,15 @@ pub const SpecialPurposeBlockType = enum {
 ///
 pub const SpecialPurposeBlock = union(SpecialPurposeBlockType) {
     trailer: void,
-    comment_extension: void,
+    comment_extension: CommentExtension,
     application_extension: ApplicationExtension,
 
     fn deinit(self: SpecialPurposeBlock, allocator: std.mem.Allocator) void {
         switch (self) {
             .trailer => {},
-            .comment_extension => {},
+            .comment_extension => |comment| {
+                comment.deinit(allocator);
+            },
             .application_extension => |app| {
                 app.deinit(allocator);
             },
@@ -717,6 +755,15 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
 
                     break :sw;
                 },
+                .comment => {
+                    const comment: CommentExtension = try .init(&reader.interface, allocator);
+
+                    try blocks.append(allocator, .{
+                        .special_purpose = .{
+                            .comment_extension = comment,
+                        },
+                    });
+                },
                 .graphic_control => {
                     const graphic_control: GraphicControlExtension = try .init(&reader.interface);
 
@@ -788,6 +835,7 @@ const Label = enum(u8) {
 const ExtensionType = enum(u8) {
     image_descriptor = 0x2C,
     graphic_control = 0xF9,
+    comment = 0xFE,
     application = 0xFF,
 
     fn init(byte: u8) ?ExtensionType {
