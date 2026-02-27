@@ -1,4 +1,5 @@
 const gif = @import("gif.zig");
+const raylib = @import("raylib");
 const std = @import("std");
 
 pub fn main() !void {
@@ -28,4 +29,12 @@ pub fn main() !void {
     defer format.deinit(allocator);
 
     std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
+
+    raylib.initWindow(960, 540, "UltraGIF");
+    while (!raylib.windowShouldClose()) {
+        raylib.beginDrawing();
+        raylib.clearBackground(.black);
+        raylib.endDrawing();
+    }
+    raylib.closeWindow();
 }
