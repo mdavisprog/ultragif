@@ -3,7 +3,9 @@
     .version = "0.1.0",
     .minimum_zig_version = "0.15.2",
     .fingerprint = 0xc9c3345e359116,
-    .dependencies = .{},
+    .dependencies = .{
+        .raylib = .{ .path = "external/raylib" },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
