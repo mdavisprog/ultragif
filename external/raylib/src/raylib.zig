@@ -1,3 +1,14 @@
+pub const Vector2 = extern struct {
+    pub const zero: Vector2 = .init(0.0, 0.0);
+
+    x: f32 = 0.0,
+    y: f32 = 0.0,
+
+    pub fn init(x: f32, y: f32) Vector2 {
+        return .{ .x = x, .y = y };
+    }
+};
+
 pub const Color = extern struct {
     pub const lightgray: Color = .init(200, 200, 200, 255);
     pub const gray: Color = .init(130, 130, 130, 255);
@@ -36,6 +47,59 @@ pub const Color = extern struct {
     }
 };
 
+pub const Image = extern struct {
+    data: *anyopaque,
+    width: i32 = 0,
+    height: i32 = 0,
+    mipmaps: i32 = 1,
+    format: i32 = 0,
+
+    pub fn init(data: *anyopaque, width: i32, height: i32, format: PixelFormat) Image {
+        return .{
+            .data = data,
+            .width = width,
+            .height = height,
+            .format = @intFromEnum(format),
+        };
+    }
+};
+
+pub const Texture = extern struct {
+    id: u32 = 0,
+    width: i32 = 0,
+    height: i32 = 0,
+    mipmaps: i32 = 1,
+    format: i32 = 0,
+};
+pub const Texture2D = Texture;
+
+pub const PixelFormat = enum(u8) {
+    uncompressed_grayscale = 1,
+    uncompressed_gray_alpha,
+    uncompressed_r5g6b5,
+    uncompressed_r8g8b8,
+    uncompressed_r5g5b5a1,
+    uncompressed_r4g4b4a4,
+    uncompressed_r8g8b8a8,
+    uncompressed_r32,
+    uncompressed_r32g32b32,
+    uncompressed_r32g32b32a32,
+    uncompressed_r16,
+    uncompressed_r16g16b16,
+    uncompressed_r16g16b16a16,
+    compressed_dxt1_rgb,
+    compressed_dxt1_rgba,
+    compressed_dxt3_rgba,
+    compressed_dxt5_rgba,
+    compressed_etc1_rgb,
+    compressed_etc2_rgb,
+    compressed_etc2_eac_rgba,
+    compressed_pvrt_rgb,
+    compressed_pvrt_rgba,
+    compressed_astc_4x4_rgba,
+    compressed_astc_8x8_rgba,
+};
+
 pub fn initWindow(width: i32, height: i32, title: []const u8) void {
     InitWindow(@intCast(width), @intCast(height), title.ptr);
 }
@@ -60,6 +124,18 @@ pub fn endDrawing() void {
     EndDrawing();
 }
 
+pub fn loadTextureFromImage(image: Image) Texture2D {
+    return LoadTextureFromImage(image);
+}
+
+pub fn unloadTexture(texture: Texture2D) void {
+    UnloadTexture(texture);
+}
+
+pub fn drawTextureV(texture: Texture2D, position: Vector2, tint: Color) void {
+    DrawTextureV(texture, position, tint);
+}
+
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
@@ -67,3 +143,8 @@ extern fn WindowShouldClose() bool;
 extern fn ClearBackground(color: Color) void;
 extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
+
+extern fn LoadTextureFromImage(image: Image) Texture2D;
+extern fn UnloadTexture(texture: Texture2D) void;
+
+extern fn DrawTextureV(texture: Texture2D, position: Vector2, tint: Color) void;

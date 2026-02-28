@@ -221,6 +221,7 @@ pub const ImageData = struct {
         for (self.image_data) |block| {
             block.deinit(allocator);
         }
+        allocator.free(self.image_data);
     }
 
     pub fn format(self: ImageData, writer: *std.Io.Writer) !void {
@@ -779,6 +780,18 @@ pub const Block = union(BlockType) {
 
 /// Represents the collection of objects that form the GIF file.
 pub const Format = struct {
+    /// Represents a single frame of image data in RGBA format.
+    pub const Image = struct {
+        data: []const u8,
+        width: u16,
+        height: u16,
+        delay_time: u16,
+
+        pub fn deinit(self: Image, allocator: std.mem.Allocator) void {
+            allocator.free(self.data);
+        }
+    };
+
     header: Header,
     logical_screen_descriptor: LogicalScreenDescriptor,
     blocks: []const Block,
@@ -790,6 +803,76 @@ pub const Format = struct {
             block.deinit(allocator);
         }
         allocator.free(self.blocks);
+    }
+
+    pub fn getImages(self: Format, allocator: std.mem.Allocator) ![]const Image {
+        var images: std.ArrayListUnmanaged(Image) = .empty;
+
+        var graphic_control: ?GraphicControlExtension = null;
+        for (self.blocks) |block| {
+            switch (block) {
+                .control => |control| {
+                    graphic_control = control.graphic_control_extension;
+                },
+                .graphic_rendering => |graphic| {
+                    switch (graphic) {
+                        .image_descriptor => |image_desc| {
+                            const indices = try image_desc.decode(allocator);
+                            defer allocator.free(indices);
+
+                            const data = try resolveColors(
+                                allocator,
+                                indices,
+                                if (image_desc.local_color_table) |table|
+                                    table
+                                else
+                                    self.logical_screen_descriptor.global_color_table.?
+                            );
+
+                            const delay_time = if (graphic_control) |control|
+                                control.delay_time
+                            else
+                                0;
+
+                            // The graphic control block is no longer valid since it applies to this
+                            // image descriptor.
+                            graphic_control = null;
+
+                            try images.append(allocator, .{
+                                .data = data,
+                                .width = image_desc.image_width,
+                                .height = image_desc.image_height,
+                                .delay_time = delay_time,
+                            });
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+
+        return try images.toOwnedSlice(allocator);
+    }
+
+    fn resolveColors(
+        allocator: std.mem.Allocator,
+        indices: []const u8,
+        color_table: []const u8,
+    ) ![]const u8 {
+        var data = try allocator.alloc(u8, indices.len * 4);
+
+        var data_index: usize = 0;
+        for (indices) |index| {
+            const i: usize = @as(usize, @intCast(index)) * 3;
+            data[data_index + 0] = color_table[i + 0];
+            data[data_index + 1] = color_table[i + 1];
+            data[data_index + 2] = color_table[i + 2];
+            data[data_index + 3] = 255;
+            data_index += 4;
+        }
+
+        return data;
     }
 };
 
@@ -839,8 +922,6 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                             .application_extension = application_extension,
                         },
                     });
-
-                    break :sw;
                 },
                 .plain_text => {
                     const plain_text_extension: PlainTextExtension = try .init(
