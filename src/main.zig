@@ -39,6 +39,7 @@ pub fn main() !void {
     }
 
     raylib.initWindow(960, 540, "UltraGIF");
+    raylib.setTargetFPS(60);
 
     const image = images[0];
     const texture = raylib.loadTextureFromImage(.init(

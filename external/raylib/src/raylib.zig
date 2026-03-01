@@ -47,6 +47,19 @@ pub const Color = extern struct {
     }
 };
 
+pub const Rectangle = extern struct {
+    pub const zero: Rectangle = .init(0.0, 0.0, 0.0, 0.0);
+
+    x: f32 = 0.0,
+    y: f32 = 0.0,
+    width: f32 = 0.0,
+    height: f32 = 0.0,
+
+    pub fn init(x: f32, y: f32, width: f32, height: f32) Rectangle {
+        return .{ .x = x, .y = y, .width = width, .height = height };
+    }
+};
+
 pub const Image = extern struct {
     data: *anyopaque,
     width: i32 = 0,
@@ -124,6 +137,22 @@ pub fn endDrawing() void {
     EndDrawing();
 }
 
+pub fn setTargetFPS(fps: c_int) void {
+    SetTargetFPS(@intCast(fps));
+}
+
+pub fn getFrameTime() f32 {
+    return GetFrameTime();
+}
+
+pub fn getTime() f64 {
+    return GetTime();
+}
+
+pub fn getFPS() c_int {
+    return GetFPS();
+}
+
 pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
@@ -143,6 +172,11 @@ extern fn WindowShouldClose() bool;
 extern fn ClearBackground(color: Color) void;
 extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
+
+extern fn SetTargetFPS(fps: c_int) void;
+extern fn GetFrameTime() f32;
+extern fn GetTime() f64;
+extern fn GetFPS() c_int;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn UnloadTexture(texture: Texture2D) void;
