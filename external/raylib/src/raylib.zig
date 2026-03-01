@@ -86,6 +86,13 @@ pub const Texture = extern struct {
 };
 pub const Texture2D = Texture;
 
+pub const Camera2D = extern struct {
+    offset: Vector2 = .zero,
+    target: Vector2 = .zero,
+    rotation: f32 = 0.0,
+    zoom: f32 = 1.0,
+};
+
 pub const PixelFormat = enum(u8) {
     uncompressed_grayscale = 1,
     uncompressed_gray_alpha,
@@ -137,6 +144,14 @@ pub fn endDrawing() void {
     EndDrawing();
 }
 
+pub fn beginMode2D(camera: Camera2D) void {
+    BeginMode2D(camera);
+}
+
+pub fn endMode2D() void {
+    EndMode2D();
+}
+
 pub fn setTargetFPS(fps: c_int) void {
     SetTargetFPS(@intCast(fps));
 }
@@ -176,6 +191,8 @@ extern fn WindowShouldClose() bool;
 extern fn ClearBackground(color: Color) void;
 extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
+extern fn BeginMode2D(camera: Camera2D) void;
+extern fn EndMode2D() void;
 
 extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
