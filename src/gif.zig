@@ -778,20 +778,32 @@ pub const Block = union(BlockType) {
     }
 };
 
+/// Represents a single frame of image data in RGBA format.
+pub const Image = struct {
+    data: []const u8,
+    width: u16,
+    height: u16,
+    delay_time: u16,
+
+    pub fn deinit(self: Image, allocator: std.mem.Allocator) void {
+        allocator.free(self.data);
+    }
+};
+
+/// Represents all of the frames within the GIF.
+pub const Images = struct {
+    data: []const Image,
+
+    pub fn deinit(self: Images, allocator: std.mem.Allocator) void {
+        for (self.data) |data| {
+            data.deinit(allocator);
+        }
+        allocator.free(self.data);
+    }
+};
+
 /// Represents the collection of objects that form the GIF file.
 pub const Format = struct {
-    /// Represents a single frame of image data in RGBA format.
-    pub const Image = struct {
-        data: []const u8,
-        width: u16,
-        height: u16,
-        delay_time: u16,
-
-        pub fn deinit(self: Image, allocator: std.mem.Allocator) void {
-            allocator.free(self.data);
-        }
-    };
-
     header: Header,
     logical_screen_descriptor: LogicalScreenDescriptor,
     blocks: []const Block,
@@ -805,7 +817,7 @@ pub const Format = struct {
         allocator.free(self.blocks);
     }
 
-    pub fn getImages(self: Format, allocator: std.mem.Allocator) ![]const Image {
+    pub fn getImages(self: Format, allocator: std.mem.Allocator) !Images {
         var images: std.ArrayListUnmanaged(Image) = .empty;
 
         var graphic_control: ?GraphicControlExtension = null;
@@ -852,7 +864,7 @@ pub const Format = struct {
             }
         }
 
-        return try images.toOwnedSlice(allocator);
+        return .{ .data = try images.toOwnedSlice(allocator) };
     }
 
     fn resolveColors(

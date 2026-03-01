@@ -153,6 +153,10 @@ pub fn getFPS() c_int {
     return GetFPS();
 }
 
+pub fn drawRectangleV(position: Vector2, size: Vector2, color: Color) void {
+    DrawRectangleV(position, size, color);
+}
+
 pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
@@ -177,6 +181,8 @@ extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
 extern fn GetTime() f64;
 extern fn GetFPS() c_int;
+
+extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn UnloadTexture(texture: Texture2D) void;
