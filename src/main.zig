@@ -40,6 +40,7 @@ pub fn main() !void {
 
     var frame_index: usize = 0;
     var frame_time: f32 = 0.0;
+    var show_texture = false;
 
     while (!raylib.windowShouldClose()) {
         const delta_time = raylib.getFrameTime();
@@ -51,16 +52,26 @@ pub fn main() !void {
             frame_time = 0.0;
         }
 
+        if (raylib.isKeyPressed(.t)) {
+            show_texture = !show_texture;
+        }
+
         raylib.beginDrawing();
         raylib.clearBackground(.darkgray);
-        raylib.drawTexturePro(
-            sprite_sheet.texture,
-            frame.bounds,
-            .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
-            .zero,
-            0.0,
-            .white,
-        );
+
+        if (show_texture) {
+            raylib.drawTextureV(sprite_sheet.texture, .zero, .white);
+        } else {
+            raylib.drawTexturePro(
+                sprite_sheet.texture,
+                frame.bounds,
+                .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
+                .zero,
+                0.0,
+                .white,
+            );
+        }
+
         raylib.endDrawing();
     }
 
