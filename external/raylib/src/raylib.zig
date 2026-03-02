@@ -206,6 +206,30 @@ pub const KeyboardKey = enum(u16) {
     volume_down = 25,
 };
 
+pub const MouseButton = enum(u8) {
+    left = 0,
+    right = 1,
+    middle = 2,
+    side = 3,
+    extra = 4,
+    forward = 5,
+    back = 6,
+};
+
+pub const MouseCursor = enum(u8) {
+    default = 0,
+    arrow = 1,
+    ibeam = 2,
+    crosshair = 3,
+    pointing_hand = 4,
+    resize_ew = 5,
+    resize_ns = 6,
+    resize_nwse = 7,
+    resize_nesw = 8,
+    resize_all = 9,
+    not_allowed = 10,
+};
+
 pub const PixelFormat = enum(u8) {
     uncompressed_grayscale = 1,
     uncompressed_gray_alpha,
@@ -243,6 +267,30 @@ pub fn closeWindow() void {
 
 pub fn windowShouldClose() bool {
     return WindowShouldClose();
+}
+
+pub fn showCursor() void {
+    ShowCursor();
+}
+
+pub fn hideCursor() void {
+    HideCursor();
+}
+
+pub fn isCursorHidden() bool {
+    return IsCursorHidden();
+}
+
+pub fn enableCursor() void {
+    EnableCursor();
+}
+
+pub fn disableCursor() void {
+    DisableCursor();
+}
+
+pub fn isCursorOnScreen() bool {
+    return IsCursorOnScreen();
 }
 
 pub fn clearBackground(color: Color) void {
@@ -313,6 +361,60 @@ pub fn setExitKey(key: KeyboardKey) void {
     SetExitKey(@intFromEnum(key));
 }
 
+pub fn isMouseButtonPressed(button: MouseButton) bool {
+    return IsMouseButtonPressed(@intFromEnum(button));
+}
+
+pub fn isMouseButtonDown(button: MouseButton) bool {
+    return IsMouseButtonDown(@intFromEnum(button));
+}
+
+pub fn isMouseButtonReleased(button: MouseButton) bool {
+    return IsMouseButtonReleased(@intFromEnum(button));
+}
+
+pub fn isMouseButtonUp(button: MouseButton) bool {
+    return IsMouseButtonUp(@intFromEnum(button));
+}
+
+pub fn getMouseX() i32 {
+    return @intCast(GetMouseX());
+}
+pub fn getMouseY() i32 {
+    return @intCast(GetMouseY());
+}
+
+pub fn getMousePosition() Vector2 {
+    return GetMousePosition();
+}
+pub fn getMouseDelta() Vector2 {
+    return GetMouseDelta();
+}
+
+pub fn setMousePosition(x: i32, y: i32) void {
+    SetMousePosition(@intCast(x), @intCast(y));
+}
+
+pub fn setMouseOffset(offset_x: i32, offset_y: i32) void {
+    SetMouseOffset(@intCast(offset_x), @intCast(offset_y));
+}
+
+pub fn setMouseScale(scale_x: f32, scale_y: f32) void {
+    SetMouseScale(scale_x, scale_y);
+}
+
+pub fn getMouseWheelMove() f32 {
+    return GetMouseWheelMove();
+}
+
+pub fn getMouseWheelMoveV() Vector2 {
+    return GetMouseWheelMoveV();
+}
+
+pub fn setMouseCursor(cursor: MouseCursor) void {
+    SetMouseCursor(@intFromEnum(cursor));
+}
+
 pub fn drawRectangleV(position: Vector2, size: Vector2, color: Color) void {
     DrawRectangleV(position, size, color);
 }
@@ -341,6 +443,13 @@ extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
 
+extern fn ShowCursor() void;
+extern fn HideCursor() void;
+extern fn IsCursorHidden() bool;
+extern fn EnableCursor() void;
+extern fn DisableCursor() void;
+extern fn IsCursorOnScreen() bool;
+
 extern fn ClearBackground(color: Color) void;
 extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
@@ -360,6 +469,21 @@ extern fn IsKeyUp(key: c_int) bool;
 extern fn GetKeyPressed() c_int;
 extern fn GetCharPressed() c_int;
 extern fn SetExitKey(key: c_int) void;
+
+extern fn IsMouseButtonPressed(button: c_int) bool;
+extern fn IsMouseButtonDown(button: c_int) bool;
+extern fn IsMouseButtonReleased(button: c_int) bool;
+extern fn IsMouseButtonUp(button: c_int) bool;
+extern fn GetMouseX() c_int;
+extern fn GetMouseY() c_int;
+extern fn GetMousePosition() Vector2;
+extern fn GetMouseDelta() Vector2;
+extern fn SetMousePosition(x: c_int, y: c_int) void;
+extern fn SetMouseOffset(offset_x: c_int, offset_y: c_int) void;
+extern fn SetMouseScale(scale_x: f32, scale_y: f32) void;
+extern fn GetMouseWheelMove() f32;
+extern fn GetMouseWheelMoveV() Vector2;
+extern fn SetMouseCursor(cursor: c_int) void;
 
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 

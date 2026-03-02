@@ -42,6 +42,9 @@ pub fn main() !void {
     var frame_time: f32 = 0.0;
     var show_texture = false;
 
+    var camera: raylib.Camera2D = .{};
+    var locked_mouse_pos: raylib.Vector2 = .zero;
+
     while (!raylib.windowShouldClose()) {
         const delta_time = raylib.getFrameTime();
 
@@ -56,7 +59,28 @@ pub fn main() !void {
             show_texture = !show_texture;
         }
 
+        if (raylib.isKeyPressed(.r)) {
+            camera.target = .zero;
+        }
+
+        if (raylib.isMouseButtonPressed(.left)) {
+            locked_mouse_pos = raylib.getMousePosition();
+            raylib.disableCursor();
+        }
+
+        if (raylib.isMouseButtonReleased(.left)) {
+            raylib.enableCursor();
+            raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
+        }
+
+        if (raylib.isMouseButtonDown(.left)) {
+            const mouse_delta = raylib.getMouseDelta();
+            camera.target.x -= mouse_delta.x;
+            camera.target.y -= mouse_delta.y;
+        }
+
         raylib.beginDrawing();
+        raylib.beginMode2D(camera);
         raylib.clearBackground(.darkgray);
 
         if (show_texture) {
@@ -72,6 +96,7 @@ pub fn main() !void {
             );
         }
 
+        raylib.endMode2D();
         raylib.endDrawing();
     }
 
