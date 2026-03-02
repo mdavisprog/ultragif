@@ -781,6 +781,8 @@ pub const Block = union(BlockType) {
 /// Represents a single frame of image data in RGBA format.
 pub const Image = struct {
     data: []const u8,
+    left: u16,
+    top: u16,
     width: u16,
     height: u16,
     delay_time: u16,
@@ -852,6 +854,8 @@ pub const Format = struct {
 
                             try images.append(allocator, .{
                                 .data = data,
+                                .left = image_desc.image_left_position,
+                                .top = image_desc.image_top_position,
                                 .width = image_desc.image_width,
                                 .height = image_desc.image_height,
                                 .delay_time = delay_time,

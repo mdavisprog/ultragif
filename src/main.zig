@@ -1,5 +1,7 @@
 const gif = @import("gif.zig");
+const Image = @import("Image.zig");
 const raylib = @import("raylib");
+const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
 
 pub fn main() !void {
@@ -30,15 +32,35 @@ pub fn main() !void {
 
     std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
 
-    const images = try format.getImages(allocator);
-    defer images.deinit(allocator);
-
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setTargetFPS(60);
 
+    const sprite_sheet: SpriteSheet = try .init(allocator, format);
+    defer sprite_sheet.deinit(allocator);
+
+    var frame_index: usize = 0;
+    var frame_time: f32 = 0.0;
+
     while (!raylib.windowShouldClose()) {
+        const delta_time = raylib.getFrameTime();
+
+        frame_time += delta_time;
+        const frame = sprite_sheet.frames[frame_index];
+        if (frame_time >= frame.delay) {
+            frame_index = @mod(frame_index + 1, sprite_sheet.frames.len);
+            frame_time = 0.0;
+        }
+
         raylib.beginDrawing();
         raylib.clearBackground(.darkgray);
+        raylib.drawTexturePro(
+            sprite_sheet.texture,
+            frame.bounds,
+            .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
+            .zero,
+            0.0,
+            .white,
+        );
         raylib.endDrawing();
     }
 
@@ -47,4 +69,5 @@ pub fn main() !void {
 
 test {
     _ = @import("Atlas.zig");
+    _ = @import("Image.zig");
 }

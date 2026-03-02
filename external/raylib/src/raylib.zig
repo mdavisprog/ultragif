@@ -176,12 +176,20 @@ pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
 
+pub fn isTextureValid(texture: Texture2D) bool {
+    return IsTextureValid(texture);
+}
+
 pub fn unloadTexture(texture: Texture2D) void {
     UnloadTexture(texture);
 }
 
 pub fn drawTextureV(texture: Texture2D, position: Vector2, tint: Color) void {
     DrawTextureV(texture, position, tint);
+}
+
+pub fn drawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) void {
+    DrawTexturePro(texture, source, dest, origin, rotation, tint);
 }
 
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
@@ -202,6 +210,8 @@ extern fn GetFPS() c_int;
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
+extern fn IsTextureValid(texture: Texture2D) bool;
 extern fn UnloadTexture(texture: Texture2D) void;
 
 extern fn DrawTextureV(texture: Texture2D, position: Vector2, tint: Color) void;
+extern fn DrawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) void;
