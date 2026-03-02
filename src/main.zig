@@ -44,10 +44,12 @@ pub fn main() !void {
 
     var camera: raylib.Camera2D = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
+    const zoom_amount: f32 = 0.05;
 
     while (!raylib.windowShouldClose()) {
         const delta_time = raylib.getFrameTime();
 
+        // Update sprite sheet animation
         frame_time += delta_time;
         const frame = sprite_sheet.frames[frame_index];
         if (frame_time >= frame.delay) {
@@ -55,30 +57,48 @@ pub fn main() !void {
             frame_time = 0.0;
         }
 
+        // Toggle sprite sheet/texture
         if (raylib.isKeyPressed(.t)) {
             show_texture = !show_texture;
         }
 
+        // Reset the camera
         if (raylib.isKeyPressed(.r)) {
             camera.target = .zero;
+            camera.offset = .zero;
+            camera.zoom = 1.0;
         }
 
+        // Begin pan and disable the mouse
         if (raylib.isMouseButtonPressed(.left)) {
             locked_mouse_pos = raylib.getMousePosition();
             raylib.disableCursor();
         }
 
+        // End pan and enable the mouse. Reset position back to begin position
         if (raylib.isMouseButtonReleased(.left)) {
             raylib.enableCursor();
             raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
         }
 
+        // Translate the camera
         if (raylib.isMouseButtonDown(.left)) {
-            const mouse_delta = raylib.getMouseDelta();
-            camera.target.x -= mouse_delta.x;
-            camera.target.y -= mouse_delta.y;
+            const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
+            camera.target.addMut(mouse_delta);
         }
 
+        // Update zoom
+        const wheel_delta = raylib.getMouseWheelMoveV();
+        if (wheel_delta.y != 0.0) {
+            const mouse_pos = raylib.getMousePosition();
+            const world_pos = raylib.getScreenToWorld2D(mouse_pos, camera);
+
+            camera.offset = mouse_pos;
+            camera.target = world_pos;
+            camera.zoom += zoom_amount * wheel_delta.y;
+        }
+
+        // Drawing logic
         raylib.beginDrawing();
         raylib.beginMode2D(camera);
         raylib.clearBackground(.darkgray);

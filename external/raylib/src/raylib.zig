@@ -7,6 +7,28 @@ pub const Vector2 = extern struct {
     pub fn init(x: f32, y: f32) Vector2 {
         return .{ .x = x, .y = y };
     }
+
+    pub fn add(self: Vector2, value: Vector2) Vector2 {
+        return .{ .x = self.x + value.x, .y = self.y + value.y };
+    }
+
+    pub fn addMut(self: *Vector2, value: Vector2) void {
+        self.x += value.x;
+        self.y += value.y;
+    }
+
+    pub fn sub(self: Vector2, value: Vector2) Vector2 {
+        return .{ .x = self.x - value.x, .y = self.y - value.y };
+    }
+
+    pub fn subMut(self: *Vector2, value: Vector2) void {
+        self.x -= value.x;
+        self.y -= value.y;
+    }
+
+    pub fn scale(self: Vector2, value: f32) Vector2 {
+        return .{ .x = self.x * value, .y = self.y * value };
+    }
 };
 
 pub const Color = extern struct {
@@ -313,6 +335,14 @@ pub fn endMode2D() void {
     EndMode2D();
 }
 
+pub fn getWorldToScreen2D(position: Vector2, camera: Camera2D) Vector2 {
+    return GetWorldToScreen2D(position, camera);
+}
+
+pub fn getScreenToWorld2D(position: Vector2, camera: Camera2D) Vector2 {
+    return GetScreenToWorld2D(position, camera);
+}
+
 pub fn setTargetFPS(fps: c_int) void {
     SetTargetFPS(@intCast(fps));
 }
@@ -455,6 +485,9 @@ extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
 extern fn BeginMode2D(camera: Camera2D) void;
 extern fn EndMode2D() void;
+
+extern fn GetWorldToScreen2D(position: Vector2, camera: Camera2D) Vector2;
+extern fn GetScreenToWorld2D(position: Vector2, camera: Camera2D) Vector2;
 
 extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
