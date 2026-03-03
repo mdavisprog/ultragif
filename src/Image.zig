@@ -68,6 +68,18 @@ pub fn fill(self: *Self, color: raylib.Color) void {
     }
 }
 
+pub fn fillRegion(self: *Self, color: raylib.Color, x: u32, y: u32, width: u32, height: u32) void {
+    for (y..height) |_y| {
+        for (x..width) |_x| {
+            const idx = self.index(@intCast(_x), @intCast(_y));
+            self.data[idx + 0] = color.r;
+            self.data[idx + 1] = color.g;
+            self.data[idx + 2] = color.b;
+            self.data[idx + 3] = color.a;
+        }
+    }
+}
+
 pub fn copy(self: *Self, image: Self, x: u32, y: u32) !void {
     if (self.format != image.format) {
         return Error.FormatMismatch;
@@ -118,6 +130,33 @@ test "fill" {
             try std.testing.expectEqual(0, image.data[idx + 1]);
             try std.testing.expectEqual(255, image.data[idx + 2]);
             try std.testing.expectEqual(255, image.data[idx + 3]);
+        }
+    }
+}
+
+test "fill region" {
+    const allocator = std.testing.allocator;
+
+    var image: Self = try .init(allocator, 6, 6, .RGBA);
+    defer image.deinit(allocator);
+
+    const x: u32 = 2;
+    const y: u32 = 2;
+    const w: u32 = 2;
+    const h: u32 = 2;
+    const fill_color: raylib.Color = .init(255, 0, 0, 255);
+    image.fillRegion(fill_color, x, y, w, h);
+
+    for (0..image.height) |_y| {
+        for (0..image.width) |_x| {
+            const idx = image.index(@intCast(_x), @intCast(_y));
+            const in_fill = _x >= x + w and x < x + w and _y >= y + h and _y < y + h;
+            const color: raylib.Color = if (in_fill) fill_color else .blank;
+
+            try std.testing.expectEqual(image.data[idx + 0], color.r);
+            try std.testing.expectEqual(image.data[idx + 1], color.g);
+            try std.testing.expectEqual(image.data[idx + 2], color.b);
+            try std.testing.expectEqual(image.data[idx + 3], color.a);
         }
     }
 }
