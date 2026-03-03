@@ -4,6 +4,7 @@
     .minimum_zig_version = "0.15.2",
     .fingerprint = 0xc9c3345e359116,
     .dependencies = .{
+        .clay = .{ .path = "external/clay" },
         .raylib = .{ .path = "external/raylib" },
     },
     .paths = .{

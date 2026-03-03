@@ -4,6 +4,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const clay = b.dependency("clay", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const raylib = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
@@ -16,6 +21,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .root_source_file = b.path("src/main.zig"),
             .imports = &.{
+                .{ .name = "clay", .module = clay.module("root") },
                 .{ .name = "raylib", .module = raylib.module("raylib") },
             },
         }),
