@@ -67,6 +67,18 @@ pub const Color = extern struct {
     pub fn init(r: u8, g: u8, b: u8, a: u8) Color {
         return .{ .r = r, .g = g, .b = b, .a = a };
     }
+
+    pub fn fromArray(array: [4]u8) Color {
+        return .{ .r = array[0], .g = array[1], .b = array[2], .a = array[3] };
+    }
+
+    pub fn fromBuffer(buffer: []const u8) Color {
+        return .{ .r = buffer[0], .g = buffer[1], .b = buffer[2], .a = buffer[3] };
+    }
+
+    pub fn eql(self: Color, value: Color) bool {
+        return self.r == value.r and self.g == value.g and self.b == value.b and self.a == value.a;
+    }
 };
 
 pub const Rectangle = extern struct {

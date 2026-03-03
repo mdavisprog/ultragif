@@ -56,6 +56,14 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.data);
 }
 
+pub fn put(self: *Self, color: raylib.Color, x: u32, y: u32) void {
+    const idx = self.index(x, y);
+    self.data[idx + 0] = color.r;
+    self.data[idx + 1] = color.g;
+    self.data[idx + 2] = color.b;
+    self.data[idx + 3] = color.a;
+}
+
 pub fn fill(self: *Self, color: raylib.Color) void {
     for (0..self.height) |y| {
         for (0..self.width) |x| {
@@ -108,6 +116,15 @@ pub fn copy(self: *Self, image: Self, x: u32, y: u32) !void {
         @memcpy(dst, src);
         src_y += 1;
     }
+}
+
+pub fn duplicate(self: Self, allocator: std.mem.Allocator) !Self {
+    return .{
+        .data = try allocator.dupe(u8, self.data),
+        .width = self.width,
+        .height = self.height,
+        .format = self.format,
+    };
 }
 
 pub fn index(self: Self, x: u32, y: u32) usize {

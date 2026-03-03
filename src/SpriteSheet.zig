@@ -14,10 +14,10 @@ texture: raylib.Texture,
 frames: []const Frame,
 
 pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
-    const images = try format.getImages(allocator);
-    defer images.deinit(allocator);
+    const gif_frames = try format.getFrames(allocator);
+    defer gif_frames.deinit(allocator);
 
-    const num_frames = images.data.len;
+    const num_frames = gif_frames.data.len;
     var frames = try allocator.alloc(Frame, num_frames);
     errdefer allocator.free(frames);
 
@@ -29,24 +29,22 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
     const width: u32 = @intCast(format.logical_screen_descriptor.width);
     const height: u32 = @intCast(format.logical_screen_descriptor.height);
 
+    // Represents the whole sprite sheet. Each frame gets its own cell within the sheet.
     var image: Image = try .init(allocator, columns * width, rows * height, .RGBA);
     defer image.deinit(allocator);
 
     var position: raylib.Vector2 = .zero;
-    for (images.data, 0..) |data, i| {
+    for (gif_frames.data, 0..) |frame, i| {
+        // Advance into the y position if cursor has reached the end of the row.
         if (i > 0 and @mod(i, columns) == 0) {
             position.x = 0.0;
             position.y += @as(f32, @floatFromInt(height));
         }
 
-        const left: u32 = @intCast(data.left);
-        const top: u32 = @intCast(data.top);
-
-        const frame_image: Image = .initWithData(@constCast(data.data), data.width, data.height, .RGBA);
         try image.copy(
-            frame_image,
-            @as(u32, @intFromFloat(position.x)) + left,
-            @as(u32, @intFromFloat(position.y)) + top,
+            frame.image,
+            @intFromFloat(position.x),
+            @intFromFloat(position.y),
         );
 
         frames[i] = .{
@@ -56,7 +54,7 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
                 @floatFromInt(width),
                 @floatFromInt(height),
             ),
-            .delay = @as(f32, @floatFromInt(data.delay_time)) * 0.01,
+            .delay = frame.delay_time,
         };
 
         position.x += @as(f32, @floatFromInt(width));

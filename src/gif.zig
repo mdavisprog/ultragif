@@ -1,4 +1,5 @@
 const compression = @import("compression/root.zig");
+const Image = @import("Image.zig");
 const std = @import("std");
 
 const lzw = compression.lzw;
@@ -475,6 +476,14 @@ pub const GraphicControlExtension = struct {
         return result;
     }
 
+    pub fn getTransparentIndex(self: GraphicControlExtension) ?u8 {
+        if (self.packed_fields.transparency_color_flag) {
+            return self.transparency_color_index;
+        }
+
+        return null;
+    }
+
     pub fn format(self: GraphicControlExtension, writer: *std.Io.Writer) !void {
         try writer.print(
             "\ntransparency_color_flag: {}\n",
@@ -779,24 +788,23 @@ pub const Block = union(BlockType) {
 };
 
 /// Represents a single frame of image data in RGBA format.
-pub const Image = struct {
-    data: []const u8,
-    left: u16,
-    top: u16,
-    width: u16,
-    height: u16,
-    delay_time: u16,
+pub const Frame = struct {
+    /// The image sized to the logical screen size and the painted pixels for this specific frame.
+    image: Image,
 
-    pub fn deinit(self: Image, allocator: std.mem.Allocator) void {
-        allocator.free(self.data);
+    /// Time in seconds in which this frame should be displayed.
+    delay_time: f32,
+
+    pub fn deinit(self: Frame, allocator: std.mem.Allocator) void {
+        self.image.deinit(allocator);
     }
 };
 
 /// Represents all of the frames within the GIF.
-pub const Images = struct {
-    data: []const Image,
+pub const Frames = struct {
+    data: []const Frame,
 
-    pub fn deinit(self: Images, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: Frames, allocator: std.mem.Allocator) void {
         for (self.data) |data| {
             data.deinit(allocator);
         }
@@ -819,8 +827,23 @@ pub const Format = struct {
         allocator.free(self.blocks);
     }
 
-    pub fn getImages(self: Format, allocator: std.mem.Allocator) !Images {
-        var images: std.ArrayListUnmanaged(Image) = .empty;
+    pub fn getFrames(self: Format, allocator: std.mem.Allocator) !Frames {
+        var frames: std.ArrayListUnmanaged(Frame) = .empty;
+
+        // A single gif frame where each gif image is painted on to. The results of the painted gif
+        // image will be added to the sprite sheet.
+        var canvas: Image = try .init(
+            allocator,
+            @intCast(self.logical_screen_descriptor.width),
+            @intCast(self.logical_screen_descriptor.height),
+            .RGBA,
+        );
+        defer canvas.deinit(allocator);
+
+        // If a background color has been specified, fill the canvas with it.
+        if (self.getBackgoundColor()) |color| {
+            canvas.fill(.fromArray(color));
+        }
 
         var graphic_control: ?GraphicControlExtension = null;
         for (self.blocks) |block| {
@@ -831,17 +854,14 @@ pub const Format = struct {
                 .graphic_rendering => |graphic| {
                     switch (graphic) {
                         .image_descriptor => |image_desc| {
-                            const indices = try image_desc.decode(allocator);
-                            defer allocator.free(indices);
+                            // Retrieve the optional transparent index for this image.
+                            const transparent_index: ?u8 = if (graphic_control) |control|
+                                control.getTransparentIndex()
+                            else
+                                null;
 
-                            const data = try resolveColors(
-                                allocator,
-                                indices,
-                                if (image_desc.local_color_table) |table|
-                                    table
-                                else
-                                    self.logical_screen_descriptor.global_color_table.?
-                            );
+                            // Paint this image to the current canvas.
+                            try self.paint(allocator, &canvas, image_desc, transparent_index);
 
                             const delay_time = if (graphic_control) |control|
                                 control.delay_time
@@ -852,13 +872,9 @@ pub const Format = struct {
                             // image descriptor.
                             graphic_control = null;
 
-                            try images.append(allocator, .{
-                                .data = data,
-                                .left = image_desc.image_left_position,
-                                .top = image_desc.image_top_position,
-                                .width = image_desc.image_width,
-                                .height = image_desc.image_height,
-                                .delay_time = delay_time,
+                            try frames.append(allocator, .{
+                                .image = try canvas.duplicate(allocator),
+                                .delay_time = @as(f32, @floatFromInt(delay_time)) * 0.01,
                             });
                         },
                         else => {},
@@ -868,27 +884,65 @@ pub const Format = struct {
             }
         }
 
-        return .{ .data = try images.toOwnedSlice(allocator) };
+        return .{ .data = try frames.toOwnedSlice(allocator) };
     }
 
-    fn resolveColors(
-        allocator: std.mem.Allocator,
-        indices: []const u8,
-        color_table: []const u8,
-    ) ![]const u8 {
-        var data = try allocator.alloc(u8, indices.len * 4);
-
-        var data_index: usize = 0;
-        for (indices) |index| {
-            const i: usize = @as(usize, @intCast(index)) * 3;
-            data[data_index + 0] = color_table[i + 0];
-            data[data_index + 1] = color_table[i + 1];
-            data[data_index + 2] = color_table[i + 2];
-            data[data_index + 3] = 255;
-            data_index += 4;
+    fn getBackgoundColor(self: Format) ?[4]u8 {
+        const index = self.logical_screen_descriptor.background_color_index;
+        if (index == 0) {
+            return null;
         }
 
-        return data;
+        const color_table = self.logical_screen_descriptor.global_color_table orelse return null;
+        return .{
+            color_table[index + 0],
+            color_table[index + 1],
+            color_table[index + 2],
+            255,
+        };
+    }
+
+    fn paint(
+        self: Format,
+        allocator: std.mem.Allocator,
+        canvas: *Image,
+        image_desc: ImageDescriptor,
+        transparent_index: ?u8,
+    ) !void {
+        const indices = try image_desc.decode(allocator);
+        defer allocator.free(indices);
+
+        const color_table = if (image_desc.local_color_table) |table|
+            table
+        else
+            self.logical_screen_descriptor.global_color_table.?;
+
+        const dst_min_x: u32 = @intCast(image_desc.image_left_position);
+        const dst_min_y: u32 = @intCast(image_desc.image_top_position);
+        const dst_max_x = dst_min_x + @as(u32, @intCast(image_desc.image_width));
+        const dst_max_y = dst_min_y + @as(u32, @intCast(image_desc.image_height));
+
+        for (0..image_desc.image_height, dst_min_y..dst_max_y) |src_y, dst_y| {
+            for (0..image_desc.image_width, dst_min_x..dst_max_x) |src_x, dst_x| {
+                const src_index = src_y * @as(usize, @intCast(image_desc.image_width)) + src_x;
+                const index = indices[src_index];
+                if (transparent_index) |t_index| {
+                    if (t_index == index) {
+                        continue;
+                    }
+                }
+
+                const i = @as(usize, @intCast(index)) * 3;
+                const color = [4]u8{
+                    color_table[i + 0],
+                    color_table[i + 1],
+                    color_table[i + 2],
+                    255,
+                };
+
+                canvas.put(.fromArray(color), @intCast(dst_x), @intCast(dst_y));
+            }
+        }
     }
 };
 
