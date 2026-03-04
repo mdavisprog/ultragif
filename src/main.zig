@@ -1,4 +1,5 @@
 const gif = @import("gif.zig");
+const GUI = @import("GUI.zig");
 const Image = @import("Image.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
@@ -34,6 +35,9 @@ pub fn main() !void {
 
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setTargetFPS(60);
+
+    var gui: GUI = try .init(allocator);
+    defer gui.deinit(allocator);
 
     const sprite_sheet: SpriteSheet = try .init(allocator, format);
     defer sprite_sheet.deinit(allocator);
