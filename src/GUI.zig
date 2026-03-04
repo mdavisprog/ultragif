@@ -46,11 +46,23 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
     switch (command.command_type) {
         .rectangle => {
             const color = command.render_data.rectangle.background_color;
-            raylib.drawRectangleV(
-                .init(bbox.x, bbox.y),
-                .init(bbox.width, bbox.height),
-                toRaylibColor(color),
-            );
+            const corners = command.render_data.rectangle.corner_radius;
+
+            // Only support rounded corners on all or none.
+            if (corners.top_left != 0.0) {
+                raylib.drawRectangleRounded(
+                    toRectangle(bbox),
+                    corners.top_left,
+                    8,
+                    toRaylibColor(color),
+                );
+            } else {
+                raylib.drawRectangleV(
+                    .init(bbox.x, bbox.y),
+                    .init(bbox.width, bbox.height),
+                    toRaylibColor(color),
+                );
+            }
         },
         else => {},
     }
@@ -66,5 +78,14 @@ fn toRaylibColor(color: clay.Color) raylib.Color {
         @intFromFloat(color.g),
         @intFromFloat(color.b),
         @intFromFloat(color.a),
+    );
+}
+
+fn toRectangle(bbox: clay.BoundingBox) raylib.Rectangle {
+    return .init(
+        bbox.x,
+        bbox.y,
+        bbox.width,
+        bbox.height,
     );
 }

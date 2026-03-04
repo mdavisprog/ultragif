@@ -461,6 +461,10 @@ pub fn drawRectangleV(position: Vector2, size: Vector2, color: Color) void {
     DrawRectangleV(position, size, color);
 }
 
+pub fn drawRectangleRounded(rec: Rectangle, roundness: f32, segments: i32, color: Color) void {
+    DrawRectangleRounded(rec, roundness, @intCast(segments), color);
+}
+
 pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
@@ -531,6 +535,7 @@ extern fn GetMouseWheelMoveV() Vector2;
 extern fn SetMouseCursor(cursor: c_int) void;
 
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
+extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, color: Color) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn IsTextureValid(texture: Texture2D) bool;
