@@ -120,11 +120,41 @@ pub const Texture = extern struct {
 };
 pub const Texture2D = Texture;
 
+pub const GlyphInfo = extern struct {
+    value: i32 = 0,
+    offset_x: i32 = 0,
+    offset_y: i32 = 0,
+    advance_x: i32 = 0,
+    image: Image,
+};
+
+pub const Font = extern struct {
+    base_size: i32 = 0,
+    glyph_count: i32 = 0,
+    glyph_padding: i32 = 0,
+    texture: Texture = .{},
+    recs: [*c]Rectangle = null,
+    glyphs: [*c]GlyphInfo = null,
+
+    pub fn getRecs(self: Font) []Rectangle {
+        return self.recs[0..@intCast(self.glyph_count)];
+    }
+
+    pub fn getGlyphs(self: Font) []const GlyphInfo {
+        return self.glyphs[0..@intCast(self.glyph_count)];
+    }
+};
+
 pub const Camera2D = extern struct {
     offset: Vector2 = .zero,
     target: Vector2 = .zero,
     rotation: f32 = 0.0,
     zoom: f32 = 1.0,
+};
+
+pub const Shader = extern struct {
+    id: u32 = 0,
+    locs: [*c]i32 = null,
 };
 
 pub const KeyboardKey = enum(u16) {
@@ -291,6 +321,29 @@ pub const PixelFormat = enum(u8) {
     compressed_astc_8x8_rgba,
 };
 
+pub const TextureFilter = enum(u8) {
+    point = 0,
+    bilinear,
+    trilinear,
+    anisotropic_4x,
+    anisotropic_8x,
+    anisotropic_16x,
+};
+
+// Texture parameters: wrap mode
+pub const TextureWrap = enum(u8) {
+    repeat = 0,
+    clamp,
+    mirror_repeat,
+    mirror_clamp,
+};
+
+pub const FontType = enum(u8) {
+    default = 0,
+    bitmap,
+    sdf,
+};
+
 pub fn initWindow(width: i32, height: i32, title: []const u8) void {
     InitWindow(@intCast(width), @intCast(height), title.ptr);
 }
@@ -301,6 +354,14 @@ pub fn closeWindow() void {
 
 pub fn windowShouldClose() bool {
     return WindowShouldClose();
+}
+
+pub fn getRenderWidth() i32 {
+    return @intCast(GetRenderWidth());
+}
+
+pub fn getRenderHeight() i32 {
+    return @intCast(GetRenderHeight());
 }
 
 pub fn showCursor() void {
@@ -347,6 +408,29 @@ pub fn endMode2D() void {
     EndMode2D();
 }
 
+pub fn beginShaderMode(shader: Shader) void {
+    BeginShaderMode(shader);
+}
+
+pub fn endShaderMode() void {
+    EndShaderMode();
+}
+
+pub fn loadShader(vs_file_name: ?[]const u8, fs_file_name: ?[]const u8) Shader {
+    return LoadShader(
+        if (vs_file_name) |name| name.ptr else null,
+        if (fs_file_name) |name| name.ptr else null,
+    );
+}
+
+pub fn isShaderValid(shader: Shader) bool {
+    return IsShaderValid(shader);
+}
+
+pub fn unloadShader(shader: Shader) void {
+    UnloadShader(shader);
+}
+
 pub fn getWorldToScreen2D(position: Vector2, camera: Camera2D) Vector2 {
     return GetWorldToScreen2D(position, camera);
 }
@@ -369,6 +453,16 @@ pub fn getTime() f64 {
 
 pub fn getFPS() c_int {
     return GetFPS();
+}
+
+pub fn loadFileData(file_name: []const u8) []u8 {
+    var size: c_int = 0;
+    const result = LoadFileData(file_name.ptr, &size);
+    return result[0..@intCast(size)];
+}
+
+pub fn unloadFileData(data: []const u8) void {
+    UnloadFileData(data.ptr);
 }
 
 pub fn isKeyPressed(key: KeyboardKey) bool {
@@ -477,6 +571,18 @@ pub fn unloadTexture(texture: Texture2D) void {
     UnloadTexture(texture);
 }
 
+pub fn genTextureMipmaps(texture: *Texture2D) void {
+    GenTextureMipmaps(texture);
+}
+
+pub fn setTextureFilter(texture: Texture2D, filter: TextureFilter) void {
+    SetTextureFilter(texture, @intFromEnum(filter));
+}
+
+pub fn setTextureWrap(texture: Texture2D, wrap: TextureWrap) void {
+    SetTextureWrap(texture, @intFromEnum(wrap));
+}
+
 pub fn drawTextureV(texture: Texture2D, position: Vector2, tint: Color) void {
     DrawTextureV(texture, position, tint);
 }
@@ -485,9 +591,76 @@ pub fn drawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, or
     DrawTexturePro(texture, source, dest, origin, rotation, tint);
 }
 
+pub fn loadFontData(file_data: []const u8, font_size: i32, codepoints: ?[]i32, codepoint_count: i32, _type: FontType) []GlyphInfo {
+    const result = LoadFontData(
+        file_data.ptr,
+        @intCast(file_data.len),
+        @intCast(font_size),
+        if (codepoints) |_codepoints| _codepoints.ptr else null,
+        @intCast(codepoint_count),
+        @intFromEnum(_type),
+    );
+
+    return result[0..@intCast(codepoint_count)];
+}
+
+pub fn genImageFontAtlas(
+    glyphs: []const GlyphInfo,
+    glyph_recs: *[*c]Rectangle,
+    font_size: i32,
+    padding: i32,
+    pack_method: i32,
+) Image {
+    var recs: [*c]Rectangle = null;
+    const result = GenImageFontAtlas(
+        glyphs.ptr,
+        @as([*c][*c]Rectangle, @ptrCast(&recs)),
+        @intCast(glyphs.len),
+        @intCast(font_size),
+        @intCast(padding),
+        @intCast(pack_method),
+    );
+
+    glyph_recs.* = recs;
+
+    return result;
+}
+
+pub fn unloadFontData(glyphs: []GlyphInfo) void {
+    UnloadFontData(glyphs.ptr, @intCast(glyphs.len));
+}
+
+pub fn unloadFont(font: Font) void {
+    UnloadFont(font);
+}
+
+pub fn drawTextEx(
+    font: Font,
+    text: []const u8,
+    position: Vector2,
+    font_size: f32,
+    spacing: f32,
+    tint: Color,
+) void {
+    DrawTextEx(
+        font,
+        text.ptr,
+        position,
+        font_size,
+        spacing,
+        tint,
+    );
+}
+
+pub fn measureTextEx(font: Font, text: []const u8, font_size: f32, spacing: f32) Vector2 {
+    return MeasureTextEx(font, text.ptr, font_size, spacing);
+}
+
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
+extern fn GetRenderWidth() c_int;
+extern fn GetRenderHeight() c_int;
 
 extern fn ShowCursor() void;
 extern fn HideCursor() void;
@@ -501,6 +674,12 @@ extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
 extern fn BeginMode2D(camera: Camera2D) void;
 extern fn EndMode2D() void;
+extern fn BeginShaderMode(shader: Shader) void;
+extern fn EndShaderMode() void;
+
+extern fn LoadShader(vs_file_name: [*c]const u8, fs_file_name: [*c]const u8) Shader;
+extern fn IsShaderValid(shader: Shader) bool;
+extern fn UnloadShader(shader: Shader) void;
 
 extern fn GetWorldToScreen2D(position: Vector2, camera: Camera2D) Vector2;
 extern fn GetScreenToWorld2D(position: Vector2, camera: Camera2D) Vector2;
@@ -509,6 +688,9 @@ extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
 extern fn GetTime() f64;
 extern fn GetFPS() c_int;
+
+extern fn LoadFileData(file_name: [*c]const u8, data_size: [*c]c_int) [*c]u8;
+extern fn UnloadFileData(data: [*c]const u8) void;
 
 extern fn IsKeyPressed(key: c_int) bool;
 extern fn IsKeyPressedRepeat(key: c_int) bool;
@@ -541,5 +723,18 @@ extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn IsTextureValid(texture: Texture2D) bool;
 extern fn UnloadTexture(texture: Texture2D) void;
 
+extern fn GenTextureMipmaps(texture: [*c]Texture2D) void;
+extern fn SetTextureFilter(texture: Texture2D, filter: c_int) void;
+extern fn SetTextureWrap(texture: Texture2D, wrap: c_int) void;
+
 extern fn DrawTextureV(texture: Texture2D, position: Vector2, tint: Color) void;
 extern fn DrawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) void;
+
+extern fn LoadFontData(file_data: [*c]const u8, data_size: c_int, font_size: c_int, codepoints: [*c]c_int, codepoint_count: c_int, _type: c_int) [*c]GlyphInfo;
+extern fn GenImageFontAtlas(glyphs: [*c]const GlyphInfo, glyph_recs: [*c][*c]Rectangle, glyph_count: c_int, font_size: c_int, padding: c_int, pack_method: c_int) Image;
+extern fn UnloadFontData(glyphs: [*c]GlyphInfo, glyph_count: c_int) void;
+extern fn UnloadFont(font: Font) void;
+
+extern fn DrawTextEx(font: Font, text: [*c]const u8, position: Vector2, font_size: f32, spacing: f32, tint: Color) void;
+
+extern fn MeasureTextEx(font: Font, text: [*c]const u8, font_size: f32, spacing: f32) Vector2;

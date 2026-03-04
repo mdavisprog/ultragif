@@ -5,6 +5,8 @@ const std = @import("std");
 /// Manages the GUI
 const Self = @This();
 
+font: *raylib.Font,
+font_shader: raylib.Shader,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
@@ -19,7 +21,36 @@ pub fn init(allocator: std.mem.Allocator) !Self {
         std.debug.panic("Failed to initialize Clay library!", .{});
     };
 
+    const file_data = raylib.loadFileData("assets/fonts/Roboto-Regular.ttf");
+    defer raylib.unloadFileData(file_data);
+
+    const font_size: i32 = 32;
+    const glyphs = raylib.loadFontData(
+        file_data,
+        font_size,
+        null,
+        95,
+        .sdf,
+    );
+
+    const font = try allocator.create(raylib.Font);
+    font.* = .{
+        .base_size = font_size,
+        .glyphs = glyphs.ptr,
+        .glyph_count = @intCast(glyphs.len),
+    };
+
+    const font_image = raylib.genImageFontAtlas(font.getGlyphs(), &font.recs, font_size, 0, 0);
+    font.texture = raylib.loadTextureFromImage(font_image);
+    raylib.setTextureFilter(font.texture, .bilinear);
+
+    const font_shader = raylib.loadShader(null, "assets/shaders/sdf.fs");
+
+    clay.setMeasureTextFunction(onMeasureText, font);
+
     return .{
+        .font = font,
+        .font_shader = font_shader,
         ._memory = memory,
         ._arena = arena,
         ._context = context,
@@ -28,9 +59,16 @@ pub fn init(allocator: std.mem.Allocator) !Self {
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
+    raylib.unloadFont(self.font.*);
+    allocator.destroy(self.font);
+    raylib.unloadShader(self.font_shader);
 }
 
 pub fn draw(self: Self) void {
+    const width: f32 = @floatFromInt(raylib.getRenderWidth());
+    const height: f32 = @floatFromInt(raylib.getRenderHeight());
+
+    clay.setLayoutDimensions(.init(width, height));
     clay.beginLayout();
     const commands = clay.endLayout();
 
@@ -40,8 +78,6 @@ pub fn draw(self: Self) void {
 }
 
 fn processCommand(self: Self, command: clay.RenderCommand) void {
-    _ = self;
-
     const bbox = command.bounding_box;
     switch (command.command_type) {
         .rectangle => {
@@ -64,12 +100,46 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
                 );
             }
         },
-        else => {},
+        .text => {
+            const color = command.render_data.text.text_color;
+            const string = command.render_data.text.string_contents;
+            const font_size = command.render_data.text.font_size;
+
+            raylib.beginShaderMode(self.font_shader);
+            raylib.drawTextEx(
+                self.font.*,
+                string.str(),
+                .init(bbox.x, bbox.y),
+                @floatFromInt(font_size),
+                0.0,
+                toRaylibColor(color),
+            );
+            raylib.endShaderMode();
+        },
+        else => {
+            std.debug.print("Unhandled render command: {s}\n", .{@tagName(command.command_type)});
+        },
     }
 }
 
 fn onError(err: clay.ErrorData) callconv(.c) void {
     std.log.warn("Clay error: {} '{s}'\n", .{ err.error_type, err.error_text.str() });
+}
+
+fn onMeasureText(
+    text: clay.StringSlice,
+    config: [*c]clay.TextElementConfig,
+    user_data: ?*anyopaque,
+) callconv(.c) clay.Dimensions {
+    const ptr = user_data orelse return .{};
+    const font: *raylib.Font = @ptrCast(@alignCast(ptr));
+    const size = raylib.measureTextEx(
+        font.*,
+        text.str(),
+        @floatFromInt(config.*.font_size),
+        @floatFromInt(config.*.letter_spacing),
+    );
+    return toDimensions(size);
 }
 
 fn toRaylibColor(color: clay.Color) raylib.Color {
@@ -88,4 +158,8 @@ fn toRectangle(bbox: clay.BoundingBox) raylib.Rectangle {
         bbox.width,
         bbox.height,
     );
+}
+
+fn toDimensions(dimensions: raylib.Vector2) clay.Dimensions {
+    return .init(dimensions.x, dimensions.y);
 }
