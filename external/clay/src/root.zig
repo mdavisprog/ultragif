@@ -511,7 +511,7 @@ pub const RenderCommandArray = extern struct {
     }
 
     pub fn get(self: *RenderCommandArray, index: usize) *RenderCommand {
-        return @ptrCast(RenderCommandArray_Get(self, @intCast(index)));
+        return @ptrCast(renderCommandArray_Get(self, @intCast(index)));
     }
 };
 
@@ -623,7 +623,7 @@ pub fn storeTextElementConfig(text_config: TextElementConfig) [*c]TextElementCon
     return Clay__StoreTextElementConfig(text_config);
 }
 
-pub fn RenderCommandArray_Get(array: [*c]RenderCommandArray, index: i32) [*c]RenderCommand {
+pub fn renderCommandArray_Get(array: [*c]RenderCommandArray, index: i32) [*c]RenderCommand {
     return Clay_RenderCommandArray_Get(array, index);
 }
 

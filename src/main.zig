@@ -104,6 +104,8 @@ pub fn main() !void {
 
         // Drawing logic
         raylib.beginDrawing();
+
+        // Draw canvas
         raylib.beginMode2D(camera);
         raylib.clearBackground(.darkgray);
 
@@ -121,6 +123,10 @@ pub fn main() !void {
         }
 
         raylib.endMode2D();
+
+        // Draw GUI
+        gui.draw();
+
         raylib.endDrawing();
     }
 
