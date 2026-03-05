@@ -1,3 +1,4 @@
+const App = @import("App.zig");
 const gif = @import("gif.zig");
 const GUI = @import("GUI.zig");
 const Image = @import("Image.zig");
@@ -16,31 +17,18 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (args.len < 2) {
-        std.debug.print(
-            "Argument was not given. The .gif file to load must be given as the first argument.",
-            .{},
-        );
-        return;
+    const app = try allocator.create(App);
+    app.* = .init();
+    defer {
+        app.deinit(allocator);
+        allocator.destroy(app);
     }
-
-    const path = args[1];
-    const absolute_path = try std.fs.cwd().realpathAlloc(allocator, path);
-    defer allocator.free(absolute_path);
-
-    const format = try gif.load(allocator, absolute_path);
-    defer format.deinit(allocator);
-
-    std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
 
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setTargetFPS(60);
 
     var gui: GUI = try .init(allocator);
     defer gui.deinit(allocator);
-
-    const sprite_sheet: SpriteSheet = try .init(allocator, format);
-    defer sprite_sheet.deinit(allocator);
 
     var frame_index: usize = 0;
     var frame_time: f32 = 0.0;
@@ -54,11 +42,13 @@ pub fn main() !void {
         const delta_time = raylib.getFrameTime();
 
         // Update sprite sheet animation
-        frame_time += delta_time;
-        const frame = sprite_sheet.frames[frame_index];
-        if (frame_time >= frame.delay) {
-            frame_index = @mod(frame_index + 1, sprite_sheet.frames.len);
-            frame_time = 0.0;
+        if (app.sprite_sheet) |sprite_sheet| {
+            frame_time += delta_time;
+            const frame = sprite_sheet.frames[frame_index];
+            if (frame_time >= frame.delay) {
+                frame_index = @mod(frame_index + 1, sprite_sheet.frames.len);
+                frame_time = 0.0;
+            }
         }
 
         // Toggle sprite sheet/texture
@@ -102,6 +92,20 @@ pub fn main() !void {
             camera.zoom += zoom_amount * wheel_delta.y;
         }
 
+        // Check for dropped files
+        if (raylib.isFileDropped()) {
+            const files = raylib.loadDroppedFiles();
+            defer raylib.unloadDroppedFiles(files);
+
+            const paths = files.getPaths();
+            if (paths.len > 0) {
+                const path = std.mem.span(paths[0]);
+                try app.loadGIF(allocator, path);
+                frame_time = 0.0;
+                frame_index = 0;
+            }
+        }
+
         // Drawing logic
         raylib.beginDrawing();
 
@@ -109,17 +113,20 @@ pub fn main() !void {
         raylib.beginMode2D(camera);
         raylib.clearBackground(.darkgray);
 
-        if (show_texture) {
-            raylib.drawTextureV(sprite_sheet.texture, .zero, .white);
-        } else {
-            raylib.drawTexturePro(
-                sprite_sheet.texture,
-                frame.bounds,
-                .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
-                .zero,
-                0.0,
-                .white,
-            );
+        if (app.sprite_sheet) |sprite_sheet| {
+            if (show_texture) {
+                raylib.drawTextureV(sprite_sheet.texture, .zero, .white);
+            } else {
+                const frame = sprite_sheet.frames[frame_index];
+                raylib.drawTexturePro(
+                    sprite_sheet.texture,
+                    frame.bounds,
+                    .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
+                    .zero,
+                    0.0,
+                    .white,
+                );
+            }
         }
 
         raylib.endMode2D();

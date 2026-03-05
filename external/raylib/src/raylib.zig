@@ -157,6 +157,16 @@ pub const Shader = extern struct {
     locs: [*c]i32 = null,
 };
 
+pub const FilePathList = extern struct {
+    capacity: u32 = 0,
+    count: u32 = 0,
+    paths: [*c][*c]u8,
+
+    pub fn getPaths(self: FilePathList) [][*c]u8 {
+        return self.paths[0..@intCast(self.count)];
+    }
+};
+
 pub const KeyboardKey = enum(u16) {
     null = 0,
     apostrophe = 39,
@@ -465,6 +475,18 @@ pub fn unloadFileData(data: []const u8) void {
     UnloadFileData(data.ptr);
 }
 
+pub fn isFileDropped() bool {
+    return IsFileDropped();
+}
+
+pub fn loadDroppedFiles() FilePathList {
+    return LoadDroppedFiles();
+}
+
+pub fn unloadDroppedFiles(files: FilePathList) void {
+    UnloadDroppedFiles(files);
+}
+
 pub fn isKeyPressed(key: KeyboardKey) bool {
     return IsKeyPressed(@intFromEnum(key));
 }
@@ -691,6 +713,10 @@ extern fn GetFPS() c_int;
 
 extern fn LoadFileData(file_name: [*c]const u8, data_size: [*c]c_int) [*c]u8;
 extern fn UnloadFileData(data: [*c]const u8) void;
+
+extern fn IsFileDropped() bool;
+extern fn LoadDroppedFiles() FilePathList;
+extern fn UnloadDroppedFiles(files: FilePathList) void;
 
 extern fn IsKeyPressed(key: c_int) bool;
 extern fn IsKeyPressedRepeat(key: c_int) bool;
