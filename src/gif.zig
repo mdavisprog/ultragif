@@ -980,7 +980,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
     sw: switch (label) {
         .extension => {
             var extension = try getNextExtension(&reader.interface) orelse break :sw;
-            ext_sw: switch (extension) {
+            switch (extension) {
                 .application => {
                     const application_extension: ApplicationExtension = try .init(
                         &reader.interface,
@@ -1022,9 +1022,6 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                             .graphic_control_extension = graphic_control,
                         },
                     });
-
-                    extension = try getNextExtension(&reader.interface) orelse break :ext_sw;
-                    continue :ext_sw extension;
                 },
                 .image_descriptor => {
                     const image_descriptor: ImageDescriptor = try .init(
@@ -1040,6 +1037,15 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                 },
             }
 
+            // Sometimes, the next extension block follows the current one without an explicit
+            // 'extension' label. Peek here to determine if the next byte is an extension type
+            // and process it as if an extension label was found.
+            if (try peekNextExtension(&reader.interface)) |ext| {
+                extension = ext;
+                continue :sw Label.extension;
+            }
+
+            // If the next byte is not an extension type, resume processing.
             label = try getNextLabel(&reader.interface) orelse break :sw;
             continue :sw label;
         },
@@ -1067,6 +1073,11 @@ fn getNextExtension(reader: *std.Io.Reader) !?ExtensionType {
         std.debug.print("Invalid extension type: 0x{x}\n", .{byte});
         return null;
     };
+}
+
+fn peekNextExtension(reader: *std.Io.Reader) !?ExtensionType {
+    const byte = try reader.peekByte();
+    return ExtensionType.init(byte);
 }
 
 const Label = enum(u8) {
