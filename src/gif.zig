@@ -376,7 +376,9 @@ pub const ImageDescriptor = struct {
     }
 
     pub fn decode(self: ImageDescriptor, allocator: std.mem.Allocator) ![]const u8 {
-        const size: usize = @intCast(self.image_width * self.image_height);
+        const width: usize = @intCast(self.image_width);
+        const height: usize = @intCast(self.image_height);
+        const size: usize = width * height;
         const pixels = try allocator.alloc(u8, size);
         var writer: std.Io.Writer = .fixed(pixels);
 
