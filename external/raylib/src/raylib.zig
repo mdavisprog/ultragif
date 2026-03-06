@@ -120,6 +120,13 @@ pub const Texture = extern struct {
 };
 pub const Texture2D = Texture;
 
+pub const RenderTexture = extern struct {
+    id: u32,
+    texture: Texture = .{},
+    depth: Texture = .{},
+};
+pub const RenderTexture2D = RenderTexture;
+
 pub const GlyphInfo = extern struct {
     value: i32 = 0,
     offset_x: i32 = 0,
@@ -418,6 +425,14 @@ pub fn endMode2D() void {
     EndMode2D();
 }
 
+pub fn beginTextureMode(target: RenderTexture2D) void {
+    BeginTextureMode(target);
+}
+
+pub fn endTextureMode() void {
+    EndTextureMode();
+}
+
 pub fn beginShaderMode(shader: Shader) void {
     BeginShaderMode(shader);
 }
@@ -585,12 +600,24 @@ pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
 
+pub fn loadRenderTexture(width: i32, height: i32) RenderTexture2D {
+    return LoadRenderTexture(@intCast(width), @intCast(height));
+}
+
 pub fn isTextureValid(texture: Texture2D) bool {
     return IsTextureValid(texture);
 }
 
 pub fn unloadTexture(texture: Texture2D) void {
     UnloadTexture(texture);
+}
+
+pub fn isRenderTextureValid(target: RenderTexture2D) bool {
+    return IsRenderTextureValid(target);
+}
+
+pub fn unloadRenderTexture(target: RenderTexture2D) void {
+    UnloadRenderTexture(target);
 }
 
 pub fn genTextureMipmaps(texture: *Texture2D) void {
@@ -696,6 +723,8 @@ extern fn BeginDrawing() void;
 extern fn EndDrawing() void;
 extern fn BeginMode2D(camera: Camera2D) void;
 extern fn EndMode2D() void;
+extern fn BeginTextureMode(target: RenderTexture2D) void;
+extern fn EndTextureMode() void;
 extern fn BeginShaderMode(shader: Shader) void;
 extern fn EndShaderMode() void;
 
@@ -746,8 +775,11 @@ extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, color: Color) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
+extern fn LoadRenderTexture(width: c_int, height: c_int) RenderTexture2D;
 extern fn IsTextureValid(texture: Texture2D) bool;
 extern fn UnloadTexture(texture: Texture2D) void;
+extern fn IsRenderTextureValid(target: RenderTexture2D) bool;
+extern fn UnloadRenderTexture(target: RenderTexture2D) void;
 
 extern fn GenTextureMipmaps(texture: [*c]Texture2D) void;
 extern fn SetTextureFilter(texture: Texture2D, filter: c_int) void;
