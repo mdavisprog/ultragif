@@ -48,6 +48,11 @@ pub const BoundingBox = extern struct {
             .height = height,
         };
     }
+
+    pub fn contains(self: BoundingBox, point: Vector2) bool {
+        return self.x <= point.x and point.x <= self.x + self.width and
+            self.y <= point.y and point.y <= self.y + self.height;
+    }
 };
 
 pub const Color = extern struct {

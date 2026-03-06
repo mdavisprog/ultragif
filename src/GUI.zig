@@ -6,6 +6,8 @@ const std = @import("std");
 /// Manages the GUI
 const Self = @This();
 
+const panel_id: clay.ElementId = clay.id("Panel");
+
 app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
@@ -65,6 +67,15 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     raylib.unloadFont(self.font.*);
     allocator.destroy(self.font);
     raylib.unloadShader(self.font_shader);
+}
+
+pub fn contains(_: Self, point: raylib.Vector2) bool {
+    const element_data = clay.getElementData(panel_id);
+    if (!element_data.found) {
+        return false;
+    }
+
+    return element_data.bounding_box.contains(.init(point.x, point.y));
 }
 
 pub fn draw(self: Self) void {
@@ -151,6 +162,7 @@ fn drawPanel(self: Self) void {
     // Main background panel
     clay.openElement();
     clay.configureOpenElement(.{
+        .id = panel_id,
         .layout = .{
             .sizing = .percent(1.0, 1.0),
         },

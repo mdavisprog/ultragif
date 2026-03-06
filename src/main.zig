@@ -63,33 +63,36 @@ pub fn main() !void {
             camera.zoom = 1.0;
         }
 
-        // Begin pan and disable the mouse
-        if (raylib.isMouseButtonPressed(.left)) {
-            locked_mouse_pos = raylib.getMousePosition();
-            raylib.disableCursor();
-        }
+        // Only allow canvas input when mouse is not hovering GUI.
+        if (!gui.contains(raylib.getMousePosition())) {
+            // Begin pan and disable the mouse
+            if (raylib.isMouseButtonPressed(.left)) {
+                locked_mouse_pos = raylib.getMousePosition();
+                raylib.disableCursor();
+            }
 
-        // End pan and enable the mouse. Reset position back to begin position
-        if (raylib.isMouseButtonReleased(.left)) {
-            raylib.enableCursor();
-            raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
-        }
+            // End pan and enable the mouse. Reset position back to begin position
+            if (raylib.isMouseButtonReleased(.left)) {
+                raylib.enableCursor();
+                raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
+            }
 
-        // Translate the camera
-        if (raylib.isMouseButtonDown(.left)) {
-            const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
-            camera.target.addMut(mouse_delta);
-        }
+            // Translate the camera
+            if (raylib.isMouseButtonDown(.left)) {
+                const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
+                camera.target.addMut(mouse_delta);
+            }
 
-        // Update zoom
-        const wheel_delta = raylib.getMouseWheelMoveV();
-        if (wheel_delta.y != 0.0) {
-            const mouse_pos = raylib.getMousePosition();
-            const world_pos = raylib.getScreenToWorld2D(mouse_pos, camera);
+            // Update zoom
+            const wheel_delta = raylib.getMouseWheelMoveV();
+            if (wheel_delta.y != 0.0) {
+                const mouse_pos = raylib.getMousePosition();
+                const world_pos = raylib.getScreenToWorld2D(mouse_pos, camera);
 
-            camera.offset = mouse_pos;
-            camera.target = world_pos;
-            camera.zoom += zoom_amount * wheel_delta.y;
+                camera.offset = mouse_pos;
+                camera.target = world_pos;
+                camera.zoom += zoom_amount * wheel_delta.y;
+            }
         }
 
         // Check for dropped files
