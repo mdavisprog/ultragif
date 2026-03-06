@@ -2,6 +2,7 @@ const App = @import("../App.zig");
 const clay = @import("clay");
 const controls = @import("controls.zig");
 const raylib = @import("raylib");
+const State = @import("State.zig");
 const std = @import("std");
 
 /// Manages the GUI
@@ -12,6 +13,7 @@ const panel_id: clay.ElementId = clay.id("Panel");
 app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
+_state: State = .{},
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
@@ -57,6 +59,7 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         .app = app,
         .font = font,
         .font_shader = font_shader,
+        ._state = .{},
         ._memory = memory,
         ._arena = arena,
         ._context = context,
@@ -77,6 +80,10 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
     }
 
     return element_data.bounding_box.contains(.init(point.x, point.y));
+}
+
+pub fn update(self: *Self) void {
+    self._state.update();
 }
 
 pub fn draw(self: Self) void {
