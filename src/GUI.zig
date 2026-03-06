@@ -1,3 +1,4 @@
+const App = @import("App.zig");
 const clay = @import("clay");
 const raylib = @import("raylib");
 const std = @import("std");
@@ -5,13 +6,14 @@ const std = @import("std");
 /// Manages the GUI
 const Self = @This();
 
+app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
 
-pub fn init(allocator: std.mem.Allocator) !Self {
+pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
     const min_size: usize = @intCast(clay.minMemorySize());
     const memory = try allocator.alloc(u8, min_size);
     const arena = clay.createArenaWithCapacityAndMemory(min_size, @ptrCast(memory));
@@ -49,6 +51,7 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     clay.setMeasureTextFunction(onMeasureText, font);
 
     return .{
+        .app = app,
         .font = font,
         .font_shader = font_shader,
         ._memory = memory,
@@ -70,6 +73,28 @@ pub fn draw(self: Self) void {
 
     clay.setLayoutDimensions(.init(width, height));
     clay.beginLayout();
+
+    // The root element which covers the entire rendering viewport.
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .percent(1.0, 1.0),
+        },
+    });
+
+    // Left side of the panel is the view of the canvas.
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .percent(0.7, 1.0),
+        },
+    });
+    clay.closeElement();
+
+    self.drawPanel();
+
+    clay.closeElement();
+
     const commands = clay.endLayout();
 
     for (commands.slice()) |command| {
@@ -120,6 +145,30 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             std.debug.print("Unhandled render command: {s}\n", .{@tagName(command.command_type)});
         },
     }
+}
+
+fn drawPanel(self: Self) void {
+    // Main background panel
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .percent(1.0, 1.0),
+        },
+        .background_color = .initu8(32, 32, 32, 255),
+    });
+    {
+        const file_name = if (self.app.loaded_gif) |loaded_gif|
+            std.fs.path.basename(loaded_gif.file_path)
+        else
+            "Drop file";
+
+        const config = clay.storeTextElementConfig(.{
+            .font_size = 20,
+            .text_color = .white,
+        });
+        clay.openTextElement(file_name, config);
+    }
+    clay.closeElement();
 }
 
 fn onError(err: clay.ErrorData) callconv(.c) void {

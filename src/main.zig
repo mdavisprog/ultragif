@@ -27,7 +27,7 @@ pub fn main() !void {
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setTargetFPS(60);
 
-    var gui: GUI = try .init(allocator);
+    var gui: GUI = try .init(allocator, app);
     defer gui.deinit(allocator);
 
     var frame_index: usize = 0;
@@ -42,11 +42,11 @@ pub fn main() !void {
         const delta_time = raylib.getFrameTime();
 
         // Update sprite sheet animation
-        if (app.sprite_sheet) |sprite_sheet| {
+        if (app.loaded_gif) |loaded_gif| {
             frame_time += delta_time;
-            const frame = sprite_sheet.frames[frame_index];
+            const frame = loaded_gif.sprite_sheet.frames[frame_index];
             if (frame_time >= frame.delay) {
-                frame_index = @mod(frame_index + 1, sprite_sheet.frames.len);
+                frame_index = @mod(frame_index + 1, loaded_gif.sprite_sheet.frames.len);
                 frame_time = 0.0;
             }
         }
@@ -113,13 +113,13 @@ pub fn main() !void {
         raylib.beginMode2D(camera);
         raylib.clearBackground(.darkgray);
 
-        if (app.sprite_sheet) |sprite_sheet| {
+        if (app.loaded_gif) |loaded_gif| {
             if (show_texture) {
-                raylib.drawTextureV(sprite_sheet.texture, .zero, .white);
+                raylib.drawTextureV(loaded_gif.sprite_sheet.texture, .zero, .white);
             } else {
-                const frame = sprite_sheet.frames[frame_index];
+                const frame = loaded_gif.sprite_sheet.frames[frame_index];
                 raylib.drawTexturePro(
-                    sprite_sheet.texture,
+                    loaded_gif.sprite_sheet.texture,
                     frame.bounds,
                     .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
                     .zero,

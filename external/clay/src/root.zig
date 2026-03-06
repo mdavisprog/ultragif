@@ -236,6 +236,13 @@ pub const Sizing = extern struct {
             .height = .fixed(height),
         };
     }
+
+    pub fn percent(width: f32, height: f32) Sizing {
+        return .{
+            .width = .percent(width),
+            .height = .percent(height),
+        };
+    }
 };
 
 pub const Padding = extern struct {

@@ -3,11 +3,16 @@ const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
 
+pub const LoadedGIF = struct {
+    format: gif.Format,
+    sprite_sheet: SpriteSheet,
+    file_path: []const u8,
+};
+
 /// State of the application.
 const Self = @This();
 
-current_gif: ?*gif.Format = null,
-sprite_sheet: ?*SpriteSheet = null,
+loaded_gif: ?LoadedGIF = null,
 
 pub fn init() Self {
     return .{};
@@ -15,44 +20,30 @@ pub fn init() Self {
 
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     self.unloadGIF(allocator);
-
-    if (self.sprite_sheet) |sheet| {
-        sheet.deinit(allocator);
-        allocator.destroy(sheet);
-    }
 }
 
 pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !void {
     self.unloadGIF(allocator);
-    self.unloadSpriteSheet(allocator);
 
-    const loaded_gif = try gif.load(allocator, path);
-    errdefer loaded_gif.deinit(allocator);
+    const format = try gif.load(allocator, path);
+    errdefer format.deinit(allocator);
 
-    const sprite_sheet = try SpriteSheet.init(allocator, loaded_gif);
+    const sprite_sheet = try SpriteSheet.init(allocator, format);
     errdefer sprite_sheet.deinit(allocator);
 
-    self.current_gif = try allocator.create(gif.Format);
-    self.current_gif.?.* = loaded_gif;
-
-    self.sprite_sheet = try allocator.create(SpriteSheet);
-    self.sprite_sheet.?.* = sprite_sheet;
+    self.loaded_gif = .{
+        .format = format,
+        .sprite_sheet = sprite_sheet,
+        .file_path = try allocator.dupe(u8, path),
+    };
 
     std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
 }
 
 fn unloadGIF(self: *Self, allocator: std.mem.Allocator) void {
-    if (self.current_gif) |current_gif| {
-        current_gif.deinit(allocator);
-        allocator.destroy(current_gif);
-        self.current_gif = null;
-    }
-}
-
-fn unloadSpriteSheet(self: *Self, allocator: std.mem.Allocator) void {
-    if (self.sprite_sheet) |sheet| {
-        sheet.deinit(allocator);
-        allocator.destroy(sheet);
-        self.sprite_sheet = null;
+    if (self.loaded_gif) |loaded_gif| {
+        loaded_gif.format.deinit(allocator);
+        loaded_gif.sprite_sheet.deinit(allocator);
+        allocator.free(loaded_gif.file_path);
     }
 }
