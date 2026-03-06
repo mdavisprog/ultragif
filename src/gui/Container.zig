@@ -1,5 +1,6 @@
 const App = @import("../App.zig");
 const clay = @import("clay");
+const controls = @import("controls.zig");
 const raylib = @import("raylib");
 const std = @import("std");
 
@@ -178,7 +179,7 @@ fn drawPanel(self: Self) void {
         else
             "Drop file";
 
-        textElement(file_name, 24);
+        controls.label(file_name, .{});
     }
     clay.closeElement();
 }
@@ -223,12 +224,4 @@ fn toRectangle(bbox: clay.BoundingBox) raylib.Rectangle {
 
 fn toDimensions(dimensions: raylib.Vector2) clay.Dimensions {
     return .init(dimensions.x, dimensions.y);
-}
-
-fn textElement(text: []const u8, size: u16) void {
-    const config = clay.storeTextElementConfig(.{
-        .font_size = size,
-        .text_color = .white,
-    });
-    clay.openTextElement(text, config);
 }
