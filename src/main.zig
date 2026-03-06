@@ -1,6 +1,6 @@
 const App = @import("App.zig");
 const gif = @import("gif.zig");
-const GUI = @import("GUI.zig");
+const gui = @import("gui/root.zig");
 const Image = @import("Image.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
@@ -27,8 +27,8 @@ pub fn main() !void {
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setTargetFPS(60);
 
-    var gui: GUI = try .init(allocator, app);
-    defer gui.deinit(allocator);
+    var gui_container: gui.Container = try .init(allocator, app);
+    defer gui_container.deinit(allocator);
 
     var frame_index: usize = 0;
     var frame_time: f32 = 0.0;
@@ -64,7 +64,7 @@ pub fn main() !void {
         }
 
         // Only allow canvas input when mouse is not hovering GUI.
-        if (!gui.contains(raylib.getMousePosition())) {
+        if (!gui_container.contains(raylib.getMousePosition())) {
             // Begin pan and disable the mouse
             if (raylib.isMouseButtonPressed(.left)) {
                 locked_mouse_pos = raylib.getMousePosition();
@@ -135,7 +135,7 @@ pub fn main() !void {
         raylib.endMode2D();
 
         // Draw GUI
-        gui.draw();
+        gui_container.draw();
 
         raylib.endDrawing();
     }

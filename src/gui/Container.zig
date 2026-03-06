@@ -1,4 +1,4 @@
-const App = @import("App.zig");
+const App = @import("../App.zig");
 const clay = @import("clay");
 const raylib = @import("raylib");
 const std = @import("std");
