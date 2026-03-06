@@ -141,10 +141,14 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             const string = command.render_data.text.string_contents;
             const font_size = command.render_data.text.font_size;
 
+            // Using raylib text functions for formatting for now. The library has a static buffer
+            // already allocated for this case.
+            const text = raylib.textSubtext(string.chars[0..@intCast(string.length)], 0, string.length);
+
             raylib.beginShaderMode(self.font_shader);
             raylib.drawTextEx(
                 self.font.*,
-                string.str(),
+                text,
                 .init(bbox.x, bbox.y),
                 @floatFromInt(font_size),
                 0.0,
@@ -174,11 +178,7 @@ fn drawPanel(self: Self) void {
         else
             "Drop file";
 
-        const config = clay.storeTextElementConfig(.{
-            .font_size = 20,
-            .text_color = .white,
-        });
-        clay.openTextElement(file_name, config);
+        textElement(file_name, 24);
     }
     clay.closeElement();
 }
@@ -223,4 +223,12 @@ fn toRectangle(bbox: clay.BoundingBox) raylib.Rectangle {
 
 fn toDimensions(dimensions: raylib.Vector2) clay.Dimensions {
     return .init(dimensions.x, dimensions.y);
+}
+
+fn textElement(text: []const u8, size: u16) void {
+    const config = clay.storeTextElementConfig(.{
+        .font_size = size,
+        .text_color = .white,
+    });
+    clay.openTextElement(text, config);
 }

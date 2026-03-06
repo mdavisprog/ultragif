@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const Vector2 = extern struct {
     pub const zero: Vector2 = .init(0.0, 0.0);
 
@@ -701,6 +703,11 @@ pub fn drawTextEx(
     );
 }
 
+pub fn textSubtext(text: []const u8, position: i32, length: i32) []const u8 {
+    const result = TextSubtext(text.ptr, @intCast(position), @intCast(length));
+    return std.mem.span(result);
+}
+
 pub fn measureTextEx(font: Font, text: []const u8, font_size: f32, spacing: f32) Vector2 {
     return MeasureTextEx(font, text.ptr, font_size, spacing);
 }
@@ -794,5 +801,7 @@ extern fn UnloadFontData(glyphs: [*c]GlyphInfo, glyph_count: c_int) void;
 extern fn UnloadFont(font: Font) void;
 
 extern fn DrawTextEx(font: Font, text: [*c]const u8, position: Vector2, font_size: f32, spacing: f32, tint: Color) void;
+
+extern fn TextSubtext(text: [*c]const u8, position: c_int, length: c_int) [*c]const u8;
 
 extern fn MeasureTextEx(font: Font, text: [*c]const u8, font_size: f32, spacing: f32) Vector2;
