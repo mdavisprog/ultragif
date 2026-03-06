@@ -1,6 +1,6 @@
 const App = @import("../App.zig");
 const clay = @import("clay");
-const controls = @import("controls.zig");
+const controls = @import("controls/root.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
@@ -186,7 +186,7 @@ fn drawPanel(self: Self) void {
         else
             "Drop file";
 
-        controls.label(file_name, .{});
+        controls.text.label(file_name, .{});
     }
     clay.closeElement();
 }
