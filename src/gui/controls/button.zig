@@ -4,7 +4,20 @@ const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
 
-pub fn label(state: State, id: clay.ElementId, text: []const u8) bool {
+pub const Config = struct {
+    layout: clay.LayoutConfig = .{
+        .sizing = .{
+            .width = .percent(1.0),
+        },
+        .child_alignment = .init(.center, .center),
+        .padding = .axes(4, 2),
+    },
+    text_config: controls.text.Config = .{
+        .text_alignment = .center,
+    },
+};
+
+pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config) bool {
     const color: clay.Color = blk: {
         if (state.isFocused(id) and raylib.isMouseButtonDown(.left)) {
             break :blk .initu8(64, 64, 64, 255);
@@ -27,13 +40,7 @@ pub fn label(state: State, id: clay.ElementId, text: []const u8) bool {
     clay.openElement();
     clay.configureOpenElement(.{
         .id = id,
-        .layout = .{
-            .sizing = .{
-                .width = .percent(1.0),
-            },
-            .child_alignment = .init(.center, .center),
-            .padding = .axes(4, 2),
-        },
+        .layout = config.layout,
         .background_color = color,
     });
     {

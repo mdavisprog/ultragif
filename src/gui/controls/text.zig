@@ -1,7 +1,7 @@
 const clay = @import("clay");
 
 /// Mirrors clay.TextElementConfig with optional values.
-pub const TextConfig = struct {
+pub const Config = struct {
     text_color: ?clay.Color = null,
     font_size: ?u16 = null,
     wrap_mode: ?clay.TextElementConfigWrapMode = null,
@@ -9,7 +9,7 @@ pub const TextConfig = struct {
 };
 
 /// Text control
-pub fn label(text: []const u8, config: TextConfig) void {
+pub fn label(text: []const u8, config: Config) void {
     const element_config = clay.storeTextElementConfig(.{
         .text_color = config.text_color orelse .white,
         .font_size = config.font_size orelse 24,
