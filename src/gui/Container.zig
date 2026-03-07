@@ -79,6 +79,10 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
         return false;
     }
 
+    if (clay.isDebugModeEnabled()) {
+        return true;
+    }
+
     return element_data.bounding_box.contains(.init(point.x, point.y));
 }
 
