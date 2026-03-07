@@ -643,6 +643,14 @@ pub fn renderCommandArray_Get(array: [*c]RenderCommandArray, index: i32) [*c]Ren
     return Clay_RenderCommandArray_Get(array, index);
 }
 
+pub fn setDebugModeEnabled(enabled: bool) void {
+    Clay_SetDebugModeEnabled(enabled);
+}
+
+pub fn isDebugModeEnabled() bool {
+    return Clay_IsDebugModeEnabled();
+}
+
 pub fn id(label: []const u8) ElementId {
     const str: String = .{
         .is_statically_allocated = false,
@@ -705,6 +713,8 @@ extern fn Clay_PointerOver(element_id: ElementId) bool;
 extern fn Clay_GetPointerOverIds() ElementIdArray;
 extern fn Clay_SetMeasureTextFunction(on_measure_text: ?MeasureTextFunction, user_data: ?*anyopaque) void;
 extern fn Clay_RenderCommandArray_Get(array: [*c]RenderCommandArray, index: i32) [*c]RenderCommand;
+extern fn Clay_SetDebugModeEnabled(enabled: bool) void;
+extern fn Clay_IsDebugModeEnabled() bool;
 extern fn Clay__OpenElement() void;
 extern fn Clay__CloseElement() void;
 extern fn Clay__ConfigureOpenElement(config: ElementDeclaration) void;

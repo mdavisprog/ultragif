@@ -443,6 +443,14 @@ pub fn endShaderMode() void {
     EndShaderMode();
 }
 
+pub fn beginScissorMode(x: i32, y: i32, width: i32, height: i32) void {
+    BeginScissorMode(@intCast(x), @intCast(y), @intCast(width), @intCast(height));
+}
+
+pub fn endScissorMode() void {
+    EndScissorMode();
+}
+
 pub fn loadShader(vs_file_name: ?[]const u8, fs_file_name: ?[]const u8) Shader {
     return LoadShader(
         if (vs_file_name) |name| name.ptr else null,
@@ -590,6 +598,30 @@ pub fn setMouseCursor(cursor: MouseCursor) void {
     SetMouseCursor(@intFromEnum(cursor));
 }
 
+pub fn drawRing(
+    center: Vector2,
+    inner_radius: f32,
+    outer_radius: f32,
+    start_angle: f32,
+    end_angle: f32,
+    segments: i32,
+    color: Color,
+) void {
+    DrawRing(
+        center,
+        inner_radius,
+        outer_radius,
+        start_angle,
+        end_angle,
+        @intCast(segments),
+        color,
+    );
+}
+
+pub fn drawRectangle(pos_x: i32, pos_y: i32, width: i32, height: i32, color: Color) void {
+    DrawRectangle(@intCast(pos_x), @intCast(pos_y), @intCast(width), @intCast(height), color);
+}
+
 pub fn drawRectangleV(position: Vector2, size: Vector2, color: Color) void {
     DrawRectangleV(position, size, color);
 }
@@ -734,6 +766,8 @@ extern fn BeginTextureMode(target: RenderTexture2D) void;
 extern fn EndTextureMode() void;
 extern fn BeginShaderMode(shader: Shader) void;
 extern fn EndShaderMode() void;
+extern fn BeginScissorMode(x: c_int, y: c_int, width: c_int, height: c_int) void;
+extern fn EndScissorMode() void;
 
 extern fn LoadShader(vs_file_name: [*c]const u8, fs_file_name: [*c]const u8) Shader;
 extern fn IsShaderValid(shader: Shader) bool;
@@ -778,6 +812,8 @@ extern fn GetMouseWheelMove() f32;
 extern fn GetMouseWheelMoveV() Vector2;
 extern fn SetMouseCursor(cursor: c_int) void;
 
+extern fn DrawRing(center: Vector2, inner_radius: f32, outer_radius: f32, start_angle: f32, end_angle: f32, segments: c_int, color: Color) void;
+extern fn DrawRectangle(pos_x: c_int, pos_y: c_int, width: c_int, height: c_int, color: Color) void;
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, color: Color) void;
 

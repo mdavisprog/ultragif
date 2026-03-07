@@ -84,6 +84,11 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
 
 pub fn update(self: *Self) void {
     self._state.update();
+
+    if (raylib.isKeyPressed(.f1)) {
+        const debug_enabled = clay.isDebugModeEnabled();
+        clay.setDebugModeEnabled(!debug_enabled);
+    }
 }
 
 pub fn draw(self: *Self) void {
@@ -168,6 +173,107 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             );
             raylib.endShaderMode();
         },
+        .border => {
+            const border = command.render_data.border;
+            const border_top: f32 = @floatFromInt(border.width.top);
+            const border_right: f32 = @floatFromInt(border.width.right);
+            const border_bottom: f32 = @floatFromInt(border.width.bottom);
+            // Left border
+            if (border.width.left > 0) {
+                raylib.drawRectangle(
+                    @intFromFloat(@round(bbox.x)),
+                    @intFromFloat(@round(bbox.y + border.corner_radius.top_left)),
+                    @intCast(border.width.left),
+                    @intFromFloat(@round(bbox.height - border.corner_radius.top_left - border.corner_radius.bottom_left)),
+                    toRaylibColor(border.color),
+                );
+            }
+            // Right border
+            if (border.width.right > 0) {
+                raylib.drawRectangle(
+                    @intFromFloat(@round(bbox.x + bbox.width - border_right)),
+                    @intFromFloat(@round(bbox.y + border.corner_radius.top_right)),
+                    @intCast(border.width.right),
+                    @intFromFloat(@round(bbox.height - border.corner_radius.top_right - border.corner_radius.bottom_right)),
+                    toRaylibColor(border.color),
+                );
+            }
+            // Top border
+            if (border.width.top > 0) {
+                raylib.drawRectangle(
+                    @intFromFloat(@round(bbox.x + border.corner_radius.top_left)),
+                    @intFromFloat(@round(bbox.y)),
+                    @intFromFloat(@round(bbox.width - border.corner_radius.top_left - border.corner_radius.top_right)),
+                    @intCast(border.width.top),
+                    toRaylibColor(border.color),
+                );
+            }
+            // Bottom border
+            if (border.width.bottom > 0) {
+                raylib.drawRectangle(
+                    @intFromFloat(@round(bbox.x + border.corner_radius.bottom_left)),
+                    @intFromFloat(@round(bbox.y + bbox.height - border_bottom)),
+                    @intFromFloat(@round(bbox.width - border.corner_radius.bottom_left - border.corner_radius.bottom_right)),
+                    @intCast(border.width.bottom),
+                    toRaylibColor(border.color),
+                );
+            }
+            if (border.corner_radius.top_left > 0) {
+                raylib.drawRing(
+                    .init(@round(bbox.x + border.corner_radius.top_left), @round(bbox.y + border.corner_radius.top_left)),
+                    @round(border.corner_radius.top_left - border_top),
+                    border.corner_radius.top_left,
+                    180.0,
+                    270.0,
+                    10,
+                    toRaylibColor(border.color),
+                );
+            }
+            if (border.corner_radius.top_right > 0) {
+                raylib.drawRing(
+                    .init(@round(bbox.x + bbox.width - border.corner_radius.top_right), @round(bbox.y + border.corner_radius.top_right)),
+                    @round(border.corner_radius.top_right - border_top),
+                    border.corner_radius.top_right,
+                    270.0,
+                    360.0,
+                    10,
+                    toRaylibColor(border.color),
+                );
+            }
+            if (border.corner_radius.bottom_left > 0) {
+                raylib.drawRing(
+                    .init(@round(bbox.x + border.corner_radius.bottom_left), @round(bbox.y + bbox.height - border.corner_radius.bottom_left)),
+                    @round(border.corner_radius.bottom_left - border_bottom),
+                    border.corner_radius.bottom_left,
+                    90.0,
+                    180.0,
+                    10,
+                    toRaylibColor(border.color),
+                );
+            }
+            if (border.corner_radius.bottom_right > 0) {
+                raylib.drawRing(
+                    .init(@round(bbox.x + bbox.width - border.corner_radius.bottom_right), @round(bbox.y + bbox.height - border.corner_radius.bottom_right)),
+                    @round(border.corner_radius.bottom_right - border_bottom),
+                    border.corner_radius.bottom_right,
+                    0.1,
+                    90.0,
+                    10,
+                    toRaylibColor(border.color),
+                );
+            }
+        },
+        .scissor_start => {
+            raylib.beginScissorMode(
+                @intFromFloat(bbox.x),
+                @intFromFloat(bbox.y),
+                @intFromFloat(bbox.width),
+                @intFromFloat(bbox.height),
+            );
+        },
+        .scissor_end => {
+            raylib.endScissorMode();
+        },
         else => {
             std.debug.print("Unhandled render command: {s}\n", .{@tagName(command.command_type)});
         },
@@ -182,6 +288,7 @@ fn drawPanel(self: Self) void {
         .layout = .{
             .sizing = .percent(1.0, 1.0),
             .layout_direction = .top_to_bottom,
+            .padding = .axes(4, 4),
         },
         .background_color = .initu8(32, 32, 32, 255),
     });
