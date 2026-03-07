@@ -286,7 +286,10 @@ fn drawPanel(self: Self) void {
     clay.configureOpenElement(.{
         .id = panel_id,
         .layout = .{
-            .sizing = .percent(1.0, 1.0),
+            .sizing = .{
+                .width = .grow(0.0, 0.0),
+                .height = .percent(1.0),
+            },
             .layout_direction = .top_to_bottom,
             .padding = .axes(4, 4),
         },
