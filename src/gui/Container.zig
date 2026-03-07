@@ -86,11 +86,15 @@ pub fn update(self: *Self) void {
     self._state.update();
 }
 
-pub fn draw(self: Self) void {
+pub fn draw(self: *Self) void {
     const width: f32 = @floatFromInt(raylib.getRenderWidth());
     const height: f32 = @floatFromInt(raylib.getRenderHeight());
 
+    const mouse_pos = raylib.getMousePosition();
+    const mouse_down = raylib.isMouseButtonDown(.left);
+
     clay.setLayoutDimensions(.init(width, height));
+    clay.setPointerState(.init(mouse_pos.x, mouse_pos.y), mouse_down);
     clay.beginLayout();
 
     // The root element which covers the entire rendering viewport.
@@ -177,6 +181,7 @@ fn drawPanel(self: Self) void {
         .id = panel_id,
         .layout = .{
             .sizing = .percent(1.0, 1.0),
+            .layout_direction = .top_to_bottom,
         },
         .background_color = .initu8(32, 32, 32, 255),
     });

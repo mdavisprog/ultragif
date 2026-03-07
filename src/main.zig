@@ -114,6 +114,8 @@ pub fn main() !void {
             }
         }
 
+        gui_container.update();
+
         // Drawing logic
         raylib.beginDrawing();
 

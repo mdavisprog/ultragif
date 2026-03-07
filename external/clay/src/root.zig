@@ -156,6 +156,10 @@ pub const ElementId = extern struct {
             self.offset == other.offset and
             self.base_id == other.base_id;
     }
+
+    pub fn fromLabel(comptime label: []const u8) ElementId {
+        return idc(label);
+    }
 };
 
 pub const ElementIdArray = extern struct {
