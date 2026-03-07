@@ -299,6 +299,10 @@ pub const LayoutAlignmentY = enum(u8) {
 pub const ChildAlignment = extern struct {
     x: LayoutAlignmentX = .left,
     y: LayoutAlignmentY = .top,
+
+    pub fn init(x: LayoutAlignmentX, y: LayoutAlignmentY) ChildAlignment {
+        return .{ .x = x, .y = y };
+    }
 };
 
 pub const LayoutConfig = extern struct {

@@ -31,11 +31,15 @@ pub fn label(state: State, id: clay.ElementId, text: []const u8) bool {
             .sizing = .{
                 .width = .percent(1.0),
             },
+            .child_alignment = .init(.center, .center),
+            .padding = .axes(4, 2),
         },
         .background_color = color,
     });
     {
-        controls.text.label(text, .{});
+        controls.text.label(text, .{
+            .text_alignment = .center,
+        });
     }
     clay.closeElement();
 
