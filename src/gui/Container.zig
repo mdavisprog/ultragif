@@ -314,13 +314,45 @@ fn onMeasureText(
 ) callconv(.c) clay.Dimensions {
     const ptr = user_data orelse return .{};
     const font: *raylib.Font = @ptrCast(@alignCast(ptr));
-    const size = raylib.measureTextEx(
-        font.*,
-        text.str(),
+
+    const scale_factor = @as(f32, @floatFromInt(config.*.font_size)) /
+        @as(f32, @floatFromInt(font.base_size));
+
+    var max_text_width: f32 = 0.0;
+    var line_text_width: f32 = 0.0;
+    var max_line_char_count: i32 = 0;
+    var line_char_count: i32 = 0;
+
+    for (0..@intCast(text.length)) |i| {
+        defer line_char_count += 1;
+
+        const ch = text.chars[i];
+        if (ch == '\n') {
+            max_text_width = @max(max_text_width, line_text_width);
+            max_line_char_count = @max(max_line_char_count, line_char_count);
+            line_text_width = 0.0;
+            line_char_count = 0;
+            continue;
+        }
+
+        const codepoint: usize = @intCast(ch - 32);
+        const glyph = font.*.glyphs[codepoint];
+
+        if (glyph.advance_x != 0) {
+            line_text_width += @as(f32, @floatFromInt(glyph.advance_x));
+        } else {
+            line_text_width += font.*.recs[codepoint].width + @as(f32, @floatFromInt(glyph.offset_x));
+        }
+    }
+
+    max_text_width = @max(max_text_width, line_text_width);
+    max_line_char_count = @max(max_line_char_count, line_char_count);
+
+    const letter_spacing: f32 = @floatFromInt(line_char_count * config.*.letter_spacing);
+    return .init(
+        max_text_width * scale_factor + letter_spacing,
         @floatFromInt(config.*.font_size),
-        @floatFromInt(config.*.letter_spacing),
     );
-    return toDimensions(size);
 }
 
 fn toRaylibColor(color: clay.Color) raylib.Color {
