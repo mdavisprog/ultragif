@@ -36,6 +36,7 @@ pub fn main() !void {
 
     var camera: raylib.Camera2D = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
+    var panning = false;
     const zoom_amount: f32 = 0.05;
 
     while (!raylib.windowShouldClose()) {
@@ -69,18 +70,7 @@ pub fn main() !void {
             if (raylib.isMouseButtonPressed(.left)) {
                 locked_mouse_pos = raylib.getMousePosition();
                 raylib.disableCursor();
-            }
-
-            // End pan and enable the mouse. Reset position back to begin position
-            if (raylib.isMouseButtonReleased(.left)) {
-                raylib.enableCursor();
-                raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
-            }
-
-            // Translate the camera
-            if (raylib.isMouseButtonDown(.left)) {
-                const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
-                camera.target.addMut(mouse_delta);
+                panning = true;
             }
 
             // Update zoom
@@ -93,6 +83,21 @@ pub fn main() !void {
                 camera.target = world_pos;
                 camera.zoom += zoom_amount * wheel_delta.y;
             }
+        }
+
+        // End pan and enable the mouse. Reset position back to begin position
+        if (raylib.isMouseButtonReleased(.left)) {
+            if (panning) {
+                raylib.enableCursor();
+                raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
+            }
+            panning = false;
+        }
+
+        // Translate the camera
+        if (panning) {
+            const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
+            camera.target.addMut(mouse_delta);
         }
 
         // Check for dropped files
