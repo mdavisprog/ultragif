@@ -444,6 +444,14 @@ pub const GraphicControlExtension = struct {
         reserved: u3,
     };
 
+    /// The way in which the graphic is to be treated after being displayed.
+    pub const DisposalMethod = enum(u8) {
+        none,
+        leave_in_place,
+        restore_to_background,
+        restore_to_previous,
+    };
+
     /// Number of bytes in the block, after the Block Size field and up to but not including the
     /// Block Terminator.  This field contains the fixed value 4.
     block_size: u8,
@@ -484,6 +492,15 @@ pub const GraphicControlExtension = struct {
         }
 
         return null;
+    }
+
+    pub fn getDisposalMethod(self: GraphicControlExtension) DisposalMethod {
+        return switch (self.packed_fields.disposal_method) {
+            1 => .leave_in_place,
+            2 => .restore_to_background,
+            3 => .restore_to_previous,
+            else => .none,
+        };
     }
 
     pub fn format(self: GraphicControlExtension, writer: *std.Io.Writer) !void {
@@ -842,11 +859,6 @@ pub const Format = struct {
         );
         defer canvas.deinit(allocator);
 
-        // If a background color has been specified, fill the canvas with it.
-        if (self.getBackgoundColor()) |color| {
-            canvas.fill(.fromArray(color));
-        }
-
         var graphic_control: ?GraphicControlExtension = null;
         for (self.blocks) |block| {
             switch (block) {
@@ -856,19 +868,20 @@ pub const Format = struct {
                 .graphic_rendering => |graphic| {
                     switch (graphic) {
                         .image_descriptor => |image_desc| {
-                            // Retrieve the optional transparent index for this image.
-                            const transparent_index: ?u8 = if (graphic_control) |control|
-                                control.getTransparentIndex()
-                            else
-                                null;
+                            // Retrieve the optional transparent index for this image and the delay
+                            // time.
+                            var transparent_index: ?u8 = null;
+                            var delay_time: u16 = 0;
+                            var disposal_method: GraphicControlExtension.DisposalMethod = .none;
+
+                            if (graphic_control) |control| {
+                                transparent_index = control.getTransparentIndex();
+                                delay_time = control.delay_time;
+                                disposal_method = control.getDisposalMethod();
+                            }
 
                             // Paint this image to the current canvas.
                             try self.paint(allocator, &canvas, image_desc, transparent_index);
-
-                            const delay_time = if (graphic_control) |control|
-                                control.delay_time
-                            else
-                                0;
 
                             // The graphic control block is no longer valid since it applies to this
                             // image descriptor.
@@ -878,6 +891,13 @@ pub const Format = struct {
                                 .image = try canvas.duplicate(allocator),
                                 .delay_time = @as(f32, @floatFromInt(delay_time)) * 0.01,
                             });
+
+                            switch (disposal_method) {
+                                .restore_to_background => {
+                                    self.dispose(&canvas, image_desc, transparent_index);
+                                },
+                                else => {},
+                            }
                         },
                         else => {},
                     }
@@ -889,13 +909,18 @@ pub const Format = struct {
         return .{ .data = try frames.toOwnedSlice(allocator) };
     }
 
-    fn getBackgoundColor(self: Format) ?[4]u8 {
+    fn getBackgoundColor(self: Format, color_table: []const u8, transparent_index: ?u8) ?[4]u8 {
         const index = self.logical_screen_descriptor.background_color_index;
         if (index == 0) {
             return null;
         }
 
-        const color_table = self.logical_screen_descriptor.global_color_table orelse return null;
+        if (transparent_index) |t_index| {
+            if (t_index == index) {
+                return .{ 0, 0, 0, 0 };
+            }
+        }
+
         return .{
             color_table[index + 0],
             color_table[index + 1],
@@ -945,6 +970,22 @@ pub const Format = struct {
                 canvas.put(.fromArray(color), @intCast(dst_x), @intCast(dst_y));
             }
         }
+    }
+
+    fn dispose(
+        self: Format,
+        canvas: *Image,
+        image_desc: ImageDescriptor,
+        transparent_index: ?u8,
+    ) void {
+        const color_table = image_desc.local_color_table orelse
+            self.logical_screen_descriptor.global_color_table.?;
+        const color = self.getBackgoundColor(color_table, transparent_index) orelse return;
+
+        // The 'restore_to_background' disposal method mentions only painting over the area
+        // the current image encompasses, but this has shown to not look right with some GIFs.
+        // Clearing the full canvas for now.
+        canvas.fill(.fromArray(color));
     }
 };
 
