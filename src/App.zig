@@ -13,6 +13,7 @@ pub const LoadedGIF = struct {
 const Self = @This();
 
 loaded_gif: ?LoadedGIF = null,
+show_sprite_sheet: bool = false,
 
 pub fn init() Self {
     return .{};

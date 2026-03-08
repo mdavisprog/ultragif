@@ -32,7 +32,6 @@ pub fn main() !void {
 
     var frame_index: usize = 0;
     var frame_time: f32 = 0.0;
-    var show_texture = false;
 
     var camera: raylib.Camera2D = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
@@ -50,11 +49,6 @@ pub fn main() !void {
                 frame_index = @mod(frame_index + 1, loaded_gif.sprite_sheet.frames.len);
                 frame_time = 0.0;
             }
-        }
-
-        // Toggle sprite sheet/texture
-        if (raylib.isKeyPressed(.t)) {
-            show_texture = !show_texture;
         }
 
         // Reset the camera
@@ -124,7 +118,7 @@ pub fn main() !void {
         raylib.clearBackground(.darkgray);
 
         if (app.loaded_gif) |loaded_gif| {
-            if (show_texture) {
+            if (app.show_sprite_sheet) {
                 raylib.drawTextureV(loaded_gif.sprite_sheet.texture, .zero, .white);
             } else {
                 const frame = loaded_gif.sprite_sheet.frames[frame_index];

@@ -296,6 +296,7 @@ fn drawPanel(self: Self) void {
             },
             .layout_direction = .top_to_bottom,
             .padding = .axes(4, 4),
+            .child_gap = 4,
         },
         .background_color = .initu8(32, 32, 32, 255),
     });
@@ -306,6 +307,14 @@ fn drawPanel(self: Self) void {
             "Drop file";
 
         controls.text.label(file_name, .{});
+
+        const show_texture_text = if (self.app.show_sprite_sheet)
+            "Show Sprites"
+        else
+            "Show Animation";
+        if (controls.button.label(self._state, .fromLabel("ShowSpriteSheet_Button"), show_texture_text, .{})) {
+            self.app.show_sprite_sheet = !self.app.show_sprite_sheet;
+        }
     }
     clay.closeElement();
 }
