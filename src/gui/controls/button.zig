@@ -20,14 +20,14 @@ pub const Config = struct {
 pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config) bool {
     const color: clay.Color = blk: {
         if (state.isFocused(id) and raylib.isMouseButtonDown(.left)) {
-            break :blk .initu8(64, 64, 64, 255);
+            break :blk state.theme.colors.button_active;
         }
 
         if (clay.pointerOver(id)) {
-            break :blk .initu8(72, 72, 72, 255);
+            break :blk state.theme.colors.button_hovered;
         }
 
-        break :blk .initu8(48, 48, 48, 255);
+        break :blk state.theme.colors.button_background;
     };
 
     const result: bool = blk: {
@@ -44,7 +44,7 @@ pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config)
         .background_color = color,
     });
     {
-        controls.text.label(text, .{
+        controls.text.label(state, text, .{
             .text_alignment = .center,
         });
     }

@@ -1,12 +1,16 @@
 const clay = @import("clay");
 const raylib = @import("raylib");
 const std = @import("std");
+const Theme = @import("Theme.zig");
 
 /// Manages what control is focused along with control specific data.
 const Self = @This();
 
 /// Keep track of the top 8 elements.
 focused: [8]clay.ElementId = @splat(.{}),
+
+/// The current theme to use for the UI
+theme: Theme = .{},
 
 pub fn isFocused(self: Self, element: clay.ElementId) bool {
     for (self.focused) |focused| {

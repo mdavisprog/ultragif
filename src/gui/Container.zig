@@ -298,7 +298,7 @@ fn drawPanel(self: Self) void {
             .padding = .axes(4, 4),
             .child_gap = 4,
         },
-        .background_color = .initu8(32, 32, 32, 255),
+        .background_color = self._state.theme.colors.background,
     });
     {
         const file_name = if (self.app.loaded_gif) |loaded_gif|
@@ -306,7 +306,7 @@ fn drawPanel(self: Self) void {
         else
             "Drop file";
 
-        controls.text.label(file_name, .{});
+        controls.text.label(self._state, file_name, .{});
 
         const show_texture_text = if (self.app.show_sprite_sheet)
             "Show Sprites"
