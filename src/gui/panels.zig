@@ -13,9 +13,9 @@ pub fn info(gui: *const Container) void {
     title(gui._state, file_name);
 
     const show_texture_text = if (gui.app.show_sprite_sheet)
-        "Show Sprites"
+        "Show Animation"
     else
-        "Show Animation";
+        "Show Sprites";
     if (controls.button.label(gui._state, .fromLabel("ShowSpriteSheet_Button"), show_texture_text, .{})) {
         gui.app.show_sprite_sheet = !gui.app.show_sprite_sheet;
     }
