@@ -7,6 +7,7 @@ const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
 
+const roboto_regular = @embedFile("../assets/fonts/Roboto-Regular.ttf");
 const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
 
 pub const GIFSummary = struct {
@@ -104,12 +105,9 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         std.debug.panic("Failed to initialize Clay library!", .{});
     };
 
-    const file_data = raylib.loadFileData("assets/fonts/Roboto-Regular.ttf");
-    defer raylib.unloadFileData(file_data);
-
     const font_size: i32 = 32;
     const glyphs = raylib.loadFontData(
-        file_data,
+        roboto_regular,
         font_size,
         null,
         95,

@@ -14,12 +14,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const assets = b.addInstallDirectory(.{
-        .install_dir = .bin,
-        .install_subdir = "assets",
-        .source_dir = b.path("assets"),
-    });
-
     const exe = b.addExecutable(.{
         .name = "ultragif",
         .root_module = b.createModule(.{
@@ -33,7 +27,6 @@ pub fn build(b: *std.Build) !void {
         }),
     });
     exe.linkLibrary(raylib.artifact("raylib"));
-    exe.step.dependOn(&assets.step);
 
     b.installArtifact(exe);
 
