@@ -1,3 +1,4 @@
+const Animator = @import("Animator.zig");
 const App = @import("App.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
@@ -35,8 +36,7 @@ pub fn main() !void {
     var gui_container: gui.Container = try .init(allocator, app);
     defer gui_container.deinit(allocator);
 
-    var frame_index: usize = 0;
-    var frame_time: f32 = 0.0;
+    var animator: Animator = .{};
 
     var camera: raylib.Camera2D = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
@@ -47,14 +47,7 @@ pub fn main() !void {
         const delta_time = raylib.getFrameTime();
 
         // Update sprite sheet animation
-        if (app.loaded_gif) |loaded_gif| {
-            frame_time += delta_time;
-            const frame = loaded_gif.sprite_sheet.frames[frame_index];
-            if (frame_time >= frame.delay) {
-                frame_index = @mod(frame_index + 1, loaded_gif.sprite_sheet.frames.len);
-                frame_time = 0.0;
-            }
-        }
+        animator.update(delta_time);
 
         // Reset the camera
         if (raylib.isKeyPressed(.r)) {
@@ -109,8 +102,10 @@ pub fn main() !void {
                 const path = std.mem.span(paths[0]);
                 try app.loadGIF(allocator, path);
                 try gui_container.loadedGIF(allocator);
-                frame_time = 0.0;
-                frame_index = 0;
+
+                if (app.loaded_gif) |loaded_gif| {
+                    animator.set(&loaded_gif.sprite_sheet);
+                }
             }
         }
 
@@ -127,11 +122,11 @@ pub fn main() !void {
             if (app.show_sprite_sheet) {
                 raylib.drawTextureV(loaded_gif.sprite_sheet.texture, .zero, .white);
             } else {
-                const frame = loaded_gif.sprite_sheet.frames[frame_index];
+                const frame = animator.getFrame();
                 raylib.drawTexturePro(
                     loaded_gif.sprite_sheet.texture,
-                    frame.bounds,
-                    .init(0.0, 0.0, frame.bounds.width, frame.bounds.height),
+                    frame,
+                    .init(0.0, 0.0, frame.width, frame.height),
                     .zero,
                     0.0,
                     .white,
