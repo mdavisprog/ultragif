@@ -481,6 +481,13 @@ pub fn loadShader(vs_file_name: ?[]const u8, fs_file_name: ?[]const u8) Shader {
     );
 }
 
+pub fn loadShaderFromMemory(vs_code: ?[]const u8, fs_code: ?[]const u8) Shader {
+    return LoadShaderFromMemory(
+        if (vs_code) |code| code.ptr else null,
+        if (fs_code) |code| code.ptr else null,
+    );
+}
+
 pub fn isShaderValid(shader: Shader) bool {
     return IsShaderValid(shader);
 }
@@ -794,6 +801,7 @@ extern fn BeginScissorMode(x: c_int, y: c_int, width: c_int, height: c_int) void
 extern fn EndScissorMode() void;
 
 extern fn LoadShader(vs_file_name: [*c]const u8, fs_file_name: [*c]const u8) Shader;
+extern fn LoadShaderFromMemory(vs_code: [*c]const u8, fs_code: [*c]const u8) Shader;
 extern fn IsShaderValid(shader: Shader) bool;
 extern fn UnloadShader(shader: Shader) void;
 

@@ -7,6 +7,8 @@ const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
 
+const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
+
 pub const GIFSummary = struct {
     version: []const u8,
     dimensions: []const u8,
@@ -125,7 +127,7 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
     font.texture = raylib.loadTextureFromImage(font_image);
     raylib.setTextureFilter(font.texture, .bilinear);
 
-    const font_shader = raylib.loadShader(null, "assets/shaders/sdf.fs");
+    const font_shader = raylib.loadShaderFromMemory(null, sdf_fs);
 
     clay.setMeasureTextFunction(onMeasureText, font);
 
