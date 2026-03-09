@@ -103,6 +103,7 @@ pub fn main() !void {
             if (paths.len > 0) {
                 const path = std.mem.span(paths[0]);
                 try app.loadGIF(allocator, path);
+                try gui_container.loadedGIF(allocator);
                 frame_time = 0.0;
                 frame_index = 0;
             }

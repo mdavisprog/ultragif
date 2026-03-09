@@ -846,6 +846,46 @@ pub const Format = struct {
         allocator.free(self.blocks);
     }
 
+    pub fn getFrameCount(self: Format) usize {
+        var result: usize = 0;
+
+        for (self.blocks) |block| {
+            switch (block) {
+                .graphic_rendering => |graphic| {
+                    switch (graphic) {
+                        .image_descriptor => |_| {
+                            result += 1;
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+
+        return result;
+    }
+
+    pub fn getCompressedImageSize(self: Format) usize {
+        var result: usize = 0;
+
+        for (self.blocks) |block| {
+            switch (block) {
+                .graphic_rendering => |graphic| {
+                    switch (graphic) {
+                        .image_descriptor => |image| {
+                            result += image.image_data.totalSize();
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+
+        return result;
+    }
+
     pub fn getFrames(self: Format, allocator: std.mem.Allocator) !Frames {
         var frames: std.ArrayListUnmanaged(Frame) = .empty;
 

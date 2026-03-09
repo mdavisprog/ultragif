@@ -1,9 +1,82 @@
 const App = @import("../App.zig");
 const clay = @import("clay");
 const controls = @import("controls/root.zig");
+const gif = @import("../gif.zig");
+const panels = @import("panels.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
+
+pub const GIFSummary = struct {
+    version: []const u8,
+    dimensions: []const u8,
+    frame_count: []const u8,
+    compressed_size: []const u8,
+    uncompressed_size: []const u8,
+
+    pub fn init(allocator: std.mem.Allocator, app: *const App) !GIFSummary {
+        const loaded_gif = app.loaded_gif.?;
+        const version = try std.fmt.allocPrint(allocator, "Version: {s}", .{loaded_gif.format.header.version});
+        const dimensions = try std.fmt.allocPrint(
+            allocator,
+            "Size: {} x {}",
+            .{ loaded_gif.format.logical_screen_descriptor.width, loaded_gif.format.logical_screen_descriptor.height },
+        );
+        const frame_count = try std.fmt.allocPrint(allocator, "Frames: {}", .{loaded_gif.format.getFrameCount()});
+
+        const compressed_size_amount = try convertBytes(allocator, loaded_gif.format.getCompressedImageSize());
+        defer allocator.free(compressed_size_amount);
+
+        const compressed_size = try std.fmt.allocPrint(
+            allocator,
+            "Compressed Size: {s}",
+            .{compressed_size_amount},
+        );
+
+        const uncompressed_size_amount = try convertBytes(allocator, loaded_gif.sprite_sheet.memorySize());
+        defer allocator.free(uncompressed_size_amount);
+
+        const uncompressed_size = try std.fmt.allocPrint(
+            allocator,
+            "Uncompressed Size: {s}",
+            .{uncompressed_size_amount},
+        );
+
+        return .{
+            .version = version,
+            .dimensions = dimensions,
+            .frame_count = frame_count,
+            .compressed_size = compressed_size,
+            .uncompressed_size = uncompressed_size,
+        };
+    }
+
+    pub fn deinit(self: GIFSummary, allocator: std.mem.Allocator) void {
+        allocator.free(self.version);
+        allocator.free(self.dimensions);
+        allocator.free(self.frame_count);
+        allocator.free(self.compressed_size);
+        allocator.free(self.uncompressed_size);
+    }
+
+    fn convertBytes(allocator: std.mem.Allocator, bytes: usize) ![]const u8 {
+        // Bytes
+        if (bytes < 1024) {
+            return try std.fmt.allocPrint(allocator, "{} B", .{bytes});
+        }
+
+        // Kilobytes
+        if (bytes < 1024 * 1024) {
+            return try std.fmt.allocPrint(allocator, "{} KB", .{bytes / 1024});
+        }
+
+        if (bytes < 1024 * 1024 * 1024) {
+            return try std.fmt.allocPrint(allocator, "{} MB", .{bytes / 1024 / 1024});
+        }
+
+        return try std.fmt.allocPrint(allocator, "{} GB", .{bytes / 1024 / 1024 / 1024});
+    }
+};
 
 /// Manages the GUI
 const Self = @This();
@@ -14,6 +87,7 @@ app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
 _state: State = .{},
+_summary: ?GIFSummary = null,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
@@ -67,6 +141,10 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+    if (self._summary) |summary| {
+        summary.deinit(allocator);
+    }
+
     allocator.free(self._memory);
     raylib.unloadFont(self.font.*);
     allocator.destroy(self.font);
@@ -84,6 +162,14 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
     }
 
     return element_data.bounding_box.contains(.init(point.x, point.y));
+}
+
+pub fn loadedGIF(self: *Self, allocator: std.mem.Allocator) !void {
+    if (self._summary) |summary| {
+        summary.deinit(allocator);
+    }
+
+    self._summary = try .init(allocator, self.app);
 }
 
 pub fn update(self: *Self) void {
@@ -301,20 +387,7 @@ fn drawPanel(self: Self) void {
         .background_color = self._state.theme.colors.background,
     });
     {
-        const file_name = if (self.app.loaded_gif) |loaded_gif|
-            std.fs.path.basename(loaded_gif.file_path)
-        else
-            "Drop file";
-
-        controls.text.label(self._state, file_name, .{});
-
-        const show_texture_text = if (self.app.show_sprite_sheet)
-            "Show Sprites"
-        else
-            "Show Animation";
-        if (controls.button.label(self._state, .fromLabel("ShowSpriteSheet_Button"), show_texture_text, .{})) {
-            self.app.show_sprite_sheet = !self.app.show_sprite_sheet;
-        }
+        panels.info(&self);
     }
     clay.closeElement();
 }
@@ -350,6 +423,8 @@ fn onMeasureText(
             line_char_count = 0;
             continue;
         }
+
+        if (ch < 32) continue;
 
         const codepoint: usize = @intCast(ch - 32);
         const glyph = font.*.glyphs[codepoint];

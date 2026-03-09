@@ -80,3 +80,9 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
 
     allocator.free(self.frames);
 }
+
+pub fn memorySize(self: Self) usize {
+    const width: usize = @intCast(self.texture.width);
+    const height: usize = @intCast(self.texture.height);
+    return width * height * 4;
+}
