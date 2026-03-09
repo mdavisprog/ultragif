@@ -176,6 +176,25 @@ pub const FilePathList = extern struct {
     }
 };
 
+pub const ConfigFlags = enum(u32) {
+    vsync_hint = 0x00000040,
+    fullscreen_mode = 0x00000002,
+    window_resizable = 0x00000004,
+    window_undecorated = 0x00000008,
+    window_hidden = 0x00000080,
+    window_minimized = 0x00000200,
+    window_maximized = 0x00000400,
+    window_unfocused = 0x00000800,
+    window_topmost = 0x00001000,
+    window_always_run = 0x00000100,
+    window_transparent = 0x00000010,
+    window_highdpi = 0x00002000,
+    window_mouse_passthrough = 0x00004000,
+    borderless_windowed_mode = 0x00008000,
+    msaa_4x_hint = 0x00000020,
+    interlaced_hint = 0x00010000,
+};
+
 pub const KeyboardKey = enum(u16) {
     null = 0,
     apostrophe = 39,
@@ -373,6 +392,10 @@ pub fn closeWindow() void {
 
 pub fn windowShouldClose() bool {
     return WindowShouldClose();
+}
+
+pub fn setWindowState(flags: u32) void {
+    SetWindowState(@intCast(flags));
 }
 
 pub fn getRenderWidth() i32 {
@@ -747,6 +770,7 @@ pub fn measureTextEx(font: Font, text: []const u8, font_size: f32, spacing: f32)
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
+extern fn SetWindowState(flags: c_uint) void;
 extern fn GetRenderWidth() c_int;
 extern fn GetRenderHeight() c_int;
 

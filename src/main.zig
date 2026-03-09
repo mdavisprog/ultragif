@@ -24,7 +24,12 @@ pub fn main() !void {
         allocator.destroy(app);
     }
 
+    const flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |
+        @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable)) |
+        @as(u32, @intFromEnum(raylib.ConfigFlags.window_highdpi));
+
     raylib.initWindow(960, 540, "UltraGIF");
+    raylib.setWindowState(flags);
     raylib.setTargetFPS(60);
 
     var gui_container: gui.Container = try .init(allocator, app);
