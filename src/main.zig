@@ -105,6 +105,14 @@ pub fn main() !void {
 
                 if (app.loaded_gif) |loaded_gif| {
                     animator.set(&loaded_gif.sprite_sheet);
+
+                    const frame_size = loaded_gif.sprite_sheet.frame_size;
+                    const canvas_bounds = gui_container.canvasBounds();
+                    camera.target = .init(
+                        canvas_bounds.width * -0.5 + frame_size.x * 0.5,
+                        canvas_bounds.height * -0.5 + frame_size.y * 0.5,
+                    );
+                    camera.zoom = 1.0;
                 }
             }
         }

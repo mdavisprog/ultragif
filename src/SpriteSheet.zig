@@ -12,6 +12,7 @@ const Self = @This();
 
 texture: raylib.Texture,
 frames: []const Frame,
+frame_size: raylib.Vector2 = .zero,
 
 pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
     const gif_frames = try format.getFrames(allocator);
@@ -70,6 +71,10 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
     return .{
         .texture = texture,
         .frames = frames,
+        .frame_size = .init(
+            @floatFromInt(width),
+            @floatFromInt(height),
+        ),
     };
 }
 

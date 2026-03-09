@@ -164,6 +164,20 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
     return element_data.bounding_box.contains(.init(point.x, point.y));
 }
 
+pub fn canvasBounds(_: Self) raylib.Rectangle {
+    const element_data = clay.getElementData(panel_id);
+    if (!element_data.found) {
+        return .zero;
+    }
+
+    return .init(
+        0.0,
+        0.0,
+        element_data.bounding_box.x,
+        element_data.bounding_box.height,
+    );
+}
+
 pub fn loadedGIF(self: *Self, allocator: std.mem.Allocator) !void {
     if (self._summary) |summary| {
         summary.deinit(allocator);
