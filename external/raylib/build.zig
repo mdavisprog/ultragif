@@ -397,10 +397,25 @@ pub fn build(b: *std.Build) !void {
 
     const lib = try compileRaylib(b, target, optimize, Options.getOptions(b));
 
+    const raylib_zig_c = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+    });
+    raylib_zig_c.addCSourceFile(.{
+        .file = b.path("src/raylib_zig.c"),
+        .flags = &.{
+            "-std=c99",
+            "-fno-sanitize=undefined",
+        },
+    });
+
     _ = b.addModule("raylib", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/raylib.zig"),
+        .imports = &.{
+            .{ .name = "raylib_zig_c", .module = raylib_zig_c },
+        },
     });
 
     lib.installHeader(b.path("src/raylib.h"), "raylib.h");

@@ -4,6 +4,7 @@ const Camera = @import("Camera.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const Image = @import("Image.zig");
+const log = @import("log.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
@@ -25,6 +26,8 @@ pub fn main() !void {
         app.deinit(allocator);
         allocator.destroy(app);
     }
+
+    log.init();
 
     const flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |
         @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable)) |

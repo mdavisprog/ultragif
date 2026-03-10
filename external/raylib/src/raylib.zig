@@ -195,6 +195,17 @@ pub const ConfigFlags = enum(u32) {
     interlaced_hint = 0x00010000,
 };
 
+pub const TraceLogLevel = enum(c_int) {
+    all = 0,
+    trace,
+    debug,
+    info,
+    warning,
+    error_,
+    fatal,
+    none,
+};
+
 pub const KeyboardKey = enum(u16) {
     null = 0,
     apostrophe = 39,
@@ -382,6 +393,9 @@ pub const FontType = enum(u8) {
     sdf,
 };
 
+pub const TraceLogCallback = *const fn (log_level: TraceLogLevel, text: []const u8) void;
+var trace_log_callback: ?TraceLogCallback = null;
+
 pub fn initWindow(width: i32, height: i32, title: []const u8) void {
     InitWindow(@intCast(width), @intCast(height), title.ptr);
 }
@@ -518,6 +532,12 @@ pub fn getTime() f64 {
 
 pub fn getFPS() c_int {
     return GetFPS();
+}
+
+pub fn setTraceLogCallback(callback: TraceLogCallback) void {
+    registerTraceLog();
+    trace_log_callback = callback;
+    onTraceLogSignature = onTraceLog;
 }
 
 pub fn loadFileData(file_name: []const u8) []u8 {
@@ -774,6 +794,12 @@ pub fn measureTextEx(font: Font, text: []const u8, font_size: f32, spacing: f32)
     return MeasureTextEx(font, text.ptr, font_size, spacing);
 }
 
+fn onTraceLog(log_level: c_int, text: [*c]const u8) callconv(.c) void {
+    if (trace_log_callback) |callback| {
+        callback(@enumFromInt(log_level), std.mem.span(text));
+    }
+}
+
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
@@ -812,6 +838,8 @@ extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
 extern fn GetTime() f64;
 extern fn GetFPS() c_int;
+
+extern fn SetTraceLogCallback(callback: TraceLogCallback) void;
 
 extern fn LoadFileData(file_name: [*c]const u8, data_size: [*c]c_int) [*c]u8;
 extern fn UnloadFileData(data: [*c]const u8) void;
@@ -873,3 +901,6 @@ extern fn DrawTextEx(font: Font, text: [*c]const u8, position: Vector2, font_siz
 extern fn TextSubtext(text: [*c]const u8, position: c_int, length: c_int) [*c]const u8;
 
 extern fn MeasureTextEx(font: Font, text: [*c]const u8, font_size: f32, spacing: f32) Vector2;
+
+extern var onTraceLogSignature: ?*const fn (log_level: c_int, text: [*c]const u8) callconv(.c) void;
+extern fn registerTraceLog() void;
