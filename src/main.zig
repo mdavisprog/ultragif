@@ -1,5 +1,6 @@
 const Animator = @import("Animator.zig");
 const App = @import("App.zig");
+const Camera = @import("Camera.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const Image = @import("Image.zig");
@@ -38,10 +39,8 @@ pub fn main() !void {
 
     var animator: Animator = .{};
 
-    var camera: raylib.Camera2D = .{};
+    var camera: Camera = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
-    var panning = false;
-    const zoom_amount: f32 = 0.05;
 
     while (!raylib.windowShouldClose()) {
         const delta_time = raylib.getFrameTime();
@@ -51,9 +50,7 @@ pub fn main() !void {
 
         // Reset the camera
         if (raylib.isKeyPressed(.r)) {
-            camera.target = .zero;
-            camera.offset = .zero;
-            camera.zoom = 1.0;
+            focusGIF(&camera, gui_container.canvasBounds(), app);
         }
 
         // Only allow canvas input when mouse is not hovering GUI.
@@ -62,35 +59,26 @@ pub fn main() !void {
             if (raylib.isMouseButtonPressed(.left)) {
                 locked_mouse_pos = raylib.getMousePosition();
                 raylib.disableCursor();
-                panning = true;
+                camera.panning = true;
             }
 
             // Update zoom
             const wheel_delta = raylib.getMouseWheelMoveV();
             if (wheel_delta.y != 0.0) {
-                const mouse_pos = raylib.getMousePosition();
-                const world_pos = raylib.getScreenToWorld2D(mouse_pos, camera);
-
-                camera.offset = mouse_pos;
-                camera.target = world_pos;
-                camera.zoom += zoom_amount * wheel_delta.y;
+                camera.zoomToMouse(wheel_delta.y);
             }
         }
 
         // End pan and enable the mouse. Reset position back to begin position
         if (raylib.isMouseButtonReleased(.left)) {
-            if (panning) {
+            if (camera.panning) {
                 raylib.enableCursor();
                 raylib.setMousePosition(@intFromFloat(locked_mouse_pos.x), @intFromFloat(locked_mouse_pos.y));
             }
-            panning = false;
+            camera.panning = false;
         }
 
-        // Translate the camera
-        if (panning) {
-            const mouse_delta = raylib.getMouseDelta().scale(-1.0 / camera.zoom);
-            camera.target.addMut(mouse_delta);
-        }
+        camera.update();
 
         // Check for dropped files
         if (raylib.isFileDropped()) {
@@ -105,14 +93,7 @@ pub fn main() !void {
 
                 if (app.loaded_gif) |loaded_gif| {
                     animator.set(&loaded_gif.sprite_sheet);
-
-                    const frame_size = loaded_gif.sprite_sheet.frame_size;
-                    const canvas_bounds = gui_container.canvasBounds();
-                    camera.target = .init(
-                        canvas_bounds.width * -0.5 + frame_size.x * 0.5,
-                        canvas_bounds.height * -0.5 + frame_size.y * 0.5,
-                    );
-                    camera.zoom = 1.0;
+                    focusGIF(&camera, gui_container.canvasBounds(), app);
                 }
             }
         }
@@ -123,7 +104,7 @@ pub fn main() !void {
         raylib.beginDrawing();
 
         // Draw canvas
-        raylib.beginMode2D(camera);
+        camera.begin();
         raylib.clearBackground(.darkgray);
 
         if (app.loaded_gif) |loaded_gif| {
@@ -142,7 +123,7 @@ pub fn main() !void {
             }
         }
 
-        raylib.endMode2D();
+        camera.end();
 
         // Draw GUI
         gui_container.draw();
@@ -151,6 +132,17 @@ pub fn main() !void {
     }
 
     raylib.closeWindow();
+}
+
+fn focusGIF(camera: *Camera, canvas_bounds: raylib.Rectangle, app: *App) void {
+    const loaded_gif = app.loaded_gif orelse return;
+    const frame_size = loaded_gif.sprite_sheet.frame_size;
+
+    camera.reset();
+    camera.state.target = .init(
+        canvas_bounds.width * -0.5 + frame_size.x * 0.5,
+        canvas_bounds.height * -0.5 + frame_size.y * 0.5,
+    );
 }
 
 test {
