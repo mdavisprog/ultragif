@@ -534,6 +534,10 @@ pub fn getFPS() c_int {
     return GetFPS();
 }
 
+pub fn setConfigFlags(flags: u32) void {
+    SetConfigFlags(@intCast(flags));
+}
+
 pub fn setTraceLogCallback(callback: TraceLogCallback) void {
     registerTraceLog();
     trace_log_callback = callback;
@@ -838,6 +842,8 @@ extern fn SetTargetFPS(fps: c_int) void;
 extern fn GetFrameTime() f32;
 extern fn GetTime() f64;
 extern fn GetFPS() c_int;
+
+extern fn SetConfigFlags(flags: c_uint) void;
 
 extern fn SetTraceLogCallback(callback: TraceLogCallback) void;
 
