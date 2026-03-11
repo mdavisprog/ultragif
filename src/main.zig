@@ -9,8 +9,10 @@ const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
 
+pub const std_options = log.options;
+
 pub fn main() !void {
-    std.debug.print("Hello UltraGIF!\n", .{});
+    std.log.info("Hello UltraGIF!", .{});
 
     var heap = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = heap.deinit();
