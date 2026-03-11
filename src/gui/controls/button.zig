@@ -5,6 +5,7 @@ const State = @import("../State.zig");
 const std = @import("std");
 
 pub const Config = struct {
+    disabled: bool = false,
     layout: clay.LayoutConfig = .{
         .sizing = .{
             .width = .percent(1.0),
@@ -19,6 +20,10 @@ pub const Config = struct {
 
 pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config) bool {
     const color: clay.Color = blk: {
+        if (config.disabled) {
+            break :blk state.theme.colors.button_disabled;
+        }
+
         if (state.isFocused(id) and raylib.isMouseButtonDown(.left)) {
             break :blk state.theme.colors.button_active;
         }
@@ -31,6 +36,7 @@ pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config)
     };
 
     const result: bool = blk: {
+        if (config.disabled) break :blk false;
         if (!state.isFocused(id)) break :blk false;
         if (!raylib.isMouseButtonReleased(.left)) break :blk false;
         if (!clay.pointerOver(id)) break :blk false;
@@ -46,6 +52,7 @@ pub fn label(state: State, id: clay.ElementId, text: []const u8, config: Config)
     {
         controls.text.label(state, text, .{
             .text_alignment = .center,
+            .disabled = config.disabled,
         });
     }
     clay.closeElement();
