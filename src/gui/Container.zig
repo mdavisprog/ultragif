@@ -1,4 +1,5 @@
 const App = @import("../App.zig");
+const build_config = @import("build_config");
 const clay = @import("clay");
 const controls = @import("controls/root.zig");
 const gif = @import("../gif.zig");
@@ -203,7 +204,7 @@ pub fn loadedGIF(self: *Self, allocator: std.mem.Allocator) !void {
 pub fn update(self: *Self) void {
     self._state.update();
 
-    if (raylib.isKeyPressed(.f1)) {
+    if (!build_config.shipping and raylib.isKeyPressed(.f1)) {
         const debug_enabled = clay.isDebugModeEnabled();
         clay.setDebugModeEnabled(!debug_enabled);
     }
