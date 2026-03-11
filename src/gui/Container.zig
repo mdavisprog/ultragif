@@ -2,6 +2,7 @@ const App = @import("../App.zig");
 const clay = @import("clay");
 const controls = @import("controls/root.zig");
 const gif = @import("../gif.zig");
+const input = @import("../input.zig");
 const panels = @import("panels.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
@@ -85,6 +86,8 @@ pub const GIFSummary = struct {
 const Self = @This();
 
 const panel_id: clay.ElementId = clay.id("Panel");
+const sizer_size = 8.0;
+const max_canvas_size_pct = 0.8;
 
 app: *App,
 font: *raylib.Font,
@@ -94,6 +97,8 @@ _summary: ?GIFSummary = null,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
+_panel_x_pos: f32 = 0.0,
+_resizing: bool = false,
 
 pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
     const min_size: usize = @intCast(clay.minMemorySize());
@@ -137,6 +142,7 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         ._memory = memory,
         ._arena = arena,
         ._context = context,
+        ._panel_x_pos = @as(f32, @floatFromInt(raylib.getRenderWidth())) * 0.7,
     };
 }
 
@@ -161,7 +167,15 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
         return true;
     }
 
-    return element_data.bounding_box.contains(.init(point.x, point.y));
+    const sizer_half_size = sizer_size * 0.5;
+    const bounding_box: clay.BoundingBox = .init(
+        element_data.bounding_box.x - sizer_half_size,
+        element_data.bounding_box.y,
+        element_data.bounding_box.width + sizer_half_size,
+        element_data.bounding_box.height,
+    );
+
+    return bounding_box.contains(.init(point.x, point.y));
 }
 
 pub fn canvasBounds(_: Self) raylib.Rectangle {
@@ -193,6 +207,14 @@ pub fn update(self: *Self) void {
         const debug_enabled = clay.isDebugModeEnabled();
         clay.setDebugModeEnabled(!debug_enabled);
     }
+
+    self.updatePanelSizer();
+}
+
+pub fn frameResized(self: *Self, old_size: raylib.Vector2, new_size: raylib.Vector2) void {
+    const current_pct = self._panel_x_pos / old_size.x;
+    self._panel_x_pos = current_pct * new_size.x;
+    self.clampPanelSize();
 }
 
 pub fn draw(self: *Self) void {
@@ -218,7 +240,10 @@ pub fn draw(self: *Self) void {
     clay.openElement();
     clay.configureOpenElement(.{
         .layout = .{
-            .sizing = .percent(0.7, 1.0),
+            .sizing = .{
+                .width = .fixed(self._panel_x_pos),
+                .height = .percent(1.0),
+            },
         },
     });
     clay.closeElement();
@@ -404,6 +429,51 @@ fn drawPanel(self: Self) void {
         panels.info(&self);
     }
     clay.closeElement();
+}
+
+fn updatePanelSizer(self: *Self) void {
+    const panel = clay.getElementData(panel_id);
+    if (!panel.found) {
+        return;
+    }
+
+    const half_width: f32 = 4.0;
+    const mouse_pos = raylib.getMousePosition();
+    const bounds: raylib.Rectangle = .init(
+        panel.bounding_box.x - half_width,
+        panel.bounding_box.y,
+        half_width * 2.0,
+        panel.bounding_box.height,
+    );
+
+    if (bounds.contains(mouse_pos)) {
+        input.mouse.setCursor(.resize_ew);
+
+        if (raylib.isMouseButtonPressed(.left)) {
+            self._resizing = true;
+        }
+    } else {
+        input.mouse.setCursor(.default);
+    }
+
+    if (raylib.isMouseButtonReleased(.left)) {
+        self._resizing = false;
+    }
+
+    if (self._resizing) {
+        const mouse_delta = raylib.getMouseDelta();
+        self._panel_x_pos += mouse_delta.x;
+        self.clampPanelSize();
+        input.mouse.setCursor(.resize_ew);
+    }
+}
+
+fn clampPanelSize(self: *Self) void {
+    const width: f32 = @floatFromInt(raylib.getRenderWidth());
+    const pct = self._panel_x_pos / width;
+    if (pct > max_canvas_size_pct) {
+        self._panel_x_pos = width * max_canvas_size_pct;
+    }
 }
 
 fn onError(err: clay.ErrorData) callconv(.c) void {

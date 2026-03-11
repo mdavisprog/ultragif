@@ -31,6 +31,10 @@ pub const Vector2 = extern struct {
     pub fn scale(self: Vector2, value: f32) Vector2 {
         return .{ .x = self.x * value, .y = self.y * value };
     }
+
+    pub fn eql(self: Vector2, value: Vector2) bool {
+        return self.x == value.x and self.y == value.y;
+    }
 };
 
 pub const Color = extern struct {
@@ -93,6 +97,11 @@ pub const Rectangle = extern struct {
 
     pub fn init(x: f32, y: f32, width: f32, height: f32) Rectangle {
         return .{ .x = x, .y = y, .width = width, .height = height };
+    }
+
+    pub fn contains(self: Rectangle, point: Vector2) bool {
+        return self.x <= point.x and point.x <= self.x + self.width and
+            self.y <= point.y and point.y <= self.y + self.height;
     }
 };
 
@@ -406,6 +415,10 @@ pub fn closeWindow() void {
 
 pub fn windowShouldClose() bool {
     return WindowShouldClose();
+}
+
+pub fn isWindowMaximized() bool {
+    return IsWindowMaximized();
 }
 
 pub fn setWindowState(flags: u32) void {
@@ -807,6 +820,7 @@ fn onTraceLog(log_level: c_int, text: [*c]const u8) callconv(.c) void {
 extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
+extern fn IsWindowMaximized() bool;
 extern fn SetWindowState(flags: c_uint) void;
 extern fn GetRenderWidth() c_int;
 extern fn GetRenderHeight() c_int;

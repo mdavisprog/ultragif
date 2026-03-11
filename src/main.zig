@@ -8,6 +8,7 @@ const log = @import("log.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
+const Viewport = @import("Viewport.zig");
 
 pub const std_options = log.options;
 
@@ -48,8 +49,17 @@ pub fn main() !void {
     var camera: Camera = .{};
     var locked_mouse_pos: raylib.Vector2 = .zero;
 
+    var viewport: Viewport = .init();
+
     while (!raylib.windowShouldClose()) {
         const delta_time = raylib.getFrameTime();
+
+        switch (viewport.nextEvent()) {
+            .size_changed => |size| {
+                gui_container.frameResized(size.previous, size.current);
+            },
+            else => {},
+        }
 
         // Update sprite sheet animation
         animator.update(delta_time);
