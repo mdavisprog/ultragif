@@ -11,6 +11,7 @@ SET EXTERNAL=external
 SET DIRS=%CACHE%^
     %OUT%^
     %EXTERNAL%\clay\%CACHE%^
+    %EXTERNAL%\plutosvg\%CACHE%^
     %EXTERNAL%\raylib\%CACHE%
 
 ECHO Cleaning...

@@ -5,6 +5,7 @@
     .fingerprint = 0xc9c3345e359116,
     .dependencies = .{
         .clay = .{ .path = "external/clay" },
+        .plutosvg = .{ .path = "external/plutosvg" },
         .raylib = .{ .path = "external/raylib" },
     },
     .paths = .{
