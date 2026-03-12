@@ -10,7 +10,13 @@ const Self = @This();
 focused: [8]clay.ElementId = @splat(.{}),
 
 /// The current theme to use for the UI
-theme: Theme = .{},
+theme: Theme,
+
+pub fn init() !Self {
+    return .{
+        .theme = try .init(),
+    };
+}
 
 pub fn isFocused(self: Self, element: clay.ElementId) bool {
     for (self.focused) |focused| {

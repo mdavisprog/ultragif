@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="24px"
+   viewBox="0 -960 960 960"
+   width="24px"
+   fill="#e3e3e3"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="camera.svg"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="16.8125"
+     inkscape:cx="12.728625"
+     inkscape:cy="11.98513"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <path
+     id="path1"
+     d="m 160,-800 c -22,0 -40.81771,7.84897 -56.48438,23.51562 C 87.848993,-760.81771 80,-742 80,-720 v 480 c 0,22 7.848993,40.81771 23.51562,56.48438 C 119.18229,-167.84897 138,-160 160,-160 h 480 c 22,0 40.81771,-7.84897 56.48438,-23.51562 C 712.15103,-199.18229 720,-218 720,-240 v -180 l 160,160 v -440 l -160,160 v -180 c 0,-22 -7.84897,-40.81771 -23.51562,-56.48438 C 680.81771,-792.15103 662,-800 640,-800 Z m 0,80 h 480 v 480 H 160 Z" />
+</svg>
