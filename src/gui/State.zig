@@ -12,10 +12,14 @@ focused: [8]clay.ElementId = @splat(.{}),
 /// The current theme to use for the UI
 theme: Theme,
 
-pub fn init() !Self {
+pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
-        .theme = try .init(),
+        .theme = try .init(allocator),
     };
+}
+
+pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+    self.theme.deinit(allocator);
 }
 
 pub fn isFocused(self: Self, element: clay.ElementId) bool {

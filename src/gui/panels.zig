@@ -20,9 +20,9 @@ pub fn info(gui: *const Container) void {
     if (controls.button.label(
         gui._state,
         .fromLabel("ShowSpriteSheet_Button"),
-        show_texture_text,
+        .init(show_texture_text),
         .{ .disabled = disabled },
-    )) {
+    ) == .clicked) {
         gui.app.show_sprite_sheet = !gui.app.show_sprite_sheet;
     }
 

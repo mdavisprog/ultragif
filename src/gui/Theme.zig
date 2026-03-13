@@ -17,25 +17,47 @@ pub const Colors = struct {
     text_disabled: clay.Color = .initu8(180, 180, 180, 255),
 };
 
+pub const Icon = enum(u16) {
+    camera,
+};
+const icon_count = @typeInfo(Icon).@"enum".fields.len;
+
 pub const Icons = struct {
-    const svgs = struct {
-        const camera = @embedFile("../assets/icons/camera.svg");
+    const SVG = struct {
+        icon: Icon,
+        data: []const u8,
     };
 
-    camera: raylib.Texture2D = .{},
+    const svgs = [_]SVG{
+        .{ .icon = .camera, .data = @embedFile("../assets/icons/camera.svg") },
+    };
 
-    fn init() !Icons {
-        return .{
-            .camera = try loadSVG(svgs.camera, 24.0, 24.0),
-        };
+    pub const width: f32 = 24.0;
+    pub const height: f32 = 24.0;
+
+    textures: [icon_count]*raylib.Texture2D,
+
+    fn init(allocator: std.mem.Allocator) !Icons {
+        var result: Icons = undefined;
+        for (svgs) |svg| {
+            result.textures[@intFromEnum(svg.icon)] = try loadSVG(allocator, svg.data, width, height);
+        }
+        return result;
     }
 
-    fn deinit(self: Icons) void {
-        raylib.unloadTexture(self.camera);
+    fn deinit(self: Icons, allocator: std.mem.Allocator) void {
+        for (self.textures) |texture| {
+            destroy(allocator, texture);
+        }
     }
 
-    fn loadSVG(svg: []const u8, width: f32, height: f32) !raylib.Texture2D {
-        const document = plutosvg.documentLoadFromData(svg, width, height, null, null) orelse {
+    fn destroy(allocator: std.mem.Allocator, texture: *raylib.Texture2D) void {
+        raylib.unloadTexture(texture.*);
+        allocator.destroy(texture);
+    }
+
+    fn loadSVG(allocator: std.mem.Allocator, svg: []const u8, _width: f32, _height: f32,) !*raylib.Texture2D {
+        const document = plutosvg.documentLoadFromData(svg, _width, _height, null, null) orelse {
             return Error.IconLoadFailed;
         };
         defer plutosvg.documentDestroy(document);
@@ -43,8 +65,8 @@ pub const Icons = struct {
         const surface = plutosvg.documentRenderToSurface(
             document,
             null,
-            @intFromFloat(width),
-            @intFromFloat(height),
+            @intFromFloat(_width),
+            @intFromFloat(_height),
             null,
             null,
             null,
@@ -54,12 +76,14 @@ pub const Icons = struct {
         defer plutosvg.plutovg.surfaceDestroy(surface);
 
         const data = plutosvg.plutovg.surfaceGetData(surface);
-        return raylib.loadTextureFromImage(.init(
+        const result = try allocator.create(raylib.Texture2D);
+        result.* = raylib.loadTextureFromImage(.init(
             @ptrCast(@constCast(data)),
-            @intFromFloat(width),
-            @intFromFloat(height),
+            @intFromFloat(_width),
+            @intFromFloat(_height),
             .uncompressed_r8g8b8a8,
         ));
+        return result;
     }
 };
 
@@ -67,14 +91,18 @@ pub const Icons = struct {
 const Self = @This();
 
 colors: Colors = .{},
-icons: Icons = .{},
+icons: Icons,
 
-pub fn init() !Self {
+pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
-        .icons = try .init(),
+        .icons = try .init(allocator),
     };
 }
 
-pub fn deinit(self: Self) void {
-    self.icons.deinit();
+pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+    self.icons.deinit(allocator);
+}
+
+pub fn getIcon(self: Self, icon: Icon) *raylib.Texture2D {
+    return self.icons.textures[@intFromEnum(icon)];
 }

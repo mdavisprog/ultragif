@@ -139,7 +139,7 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         .app = app,
         .font = font,
         .font_shader = font_shader,
-        ._state = try .init(),
+        ._state = try .init(allocator),
         ._memory = memory,
         ._arena = arena,
         ._context = context,
@@ -156,6 +156,8 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     raylib.unloadFont(self.font.*);
     allocator.destroy(self.font);
     raylib.unloadShader(self.font_shader);
+
+    self._state.deinit(allocator);
 }
 
 pub fn contains(_: Self, point: raylib.Vector2) bool {
@@ -403,6 +405,13 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
         },
         .scissor_end => {
             raylib.endScissorMode();
+        },
+        .image => {
+            const image = command.render_data.image;
+            const image_data = image.image_data orelse return;
+            const texture: *raylib.Texture2D = @ptrCast(@alignCast(image_data));
+            const color = image.background_color;
+            raylib.drawTextureV(texture.*, .init(bbox.x, bbox.y), toRaylibColor(color));
         },
         else => {
             std.debug.print("Unhandled render command: {s}\n", .{@tagName(command.command_type)});

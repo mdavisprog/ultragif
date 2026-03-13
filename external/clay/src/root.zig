@@ -58,6 +58,7 @@ pub const BoundingBox = extern struct {
 pub const Color = extern struct {
     pub const white: Color = .initu8(255, 255, 255, 255);
     pub const black: Color = .initu8(0, 0, 0, 255);
+    pub const blank: Color = .initu8(0, 0, 0, 0);
 
     r: f32 = 0.0,
     g: f32 = 0.0,
@@ -238,6 +239,13 @@ pub const Sizing = extern struct {
 
     width: Axis = .{},
     height: Axis = .{},
+
+    pub fn fit(min: f32, max: f32) Sizing {
+        return .{
+            .width = .fit(min, max),
+            .height = .fit(min, max),
+        };
+    }
 
     pub fn fixed(width: f32, height: f32) Sizing {
         return .{
