@@ -42,6 +42,9 @@ fn updateFocused(self: *Self) void {
         return;
     }
 
+    // Clear the current focus stack.
+    self.focused = @splat(.{});
+
     var i = @min(self.focused.len, hovered.len()) -| 1;
     while (i >= 0) : (i -= 1) {
         self.focused[i] = hovered.get(i);
