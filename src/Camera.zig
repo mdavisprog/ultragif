@@ -23,6 +23,14 @@ pub fn zoomToMouse(self: *Self, delta: f32) void {
     self.state.zoom = @max(self.state.zoom + zoom_delta, 0.05);
 }
 
+pub fn focusWithin(self: *Self, bounds: raylib.Rectangle, target_size: raylib.Vector2) void {
+    self.reset();
+    self.state.target = .init(
+        bounds.width * -0.5 + target_size.x * 0.5,
+        bounds.height * -0.5 + target_size.y * 0.5,
+    );
+}
+
 pub fn update(self: *Self) void {
     if (self.panning) {
         const mouse_delta = raylib.getMouseDelta().scale(-1.0 / self.state.zoom);

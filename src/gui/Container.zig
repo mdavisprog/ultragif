@@ -8,6 +8,7 @@ const panels = @import("panels.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
+const widgets = @import("widgets/root.zig");
 
 const roboto_regular = @embedFile("../assets/fonts/Roboto-Regular.ttf");
 const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
@@ -86,6 +87,7 @@ pub const GIFSummary = struct {
 /// Manages the GUI
 const Self = @This();
 
+const canvas_id: clay.ElementId = clay.id("Canvas");
 const panel_id: clay.ElementId = clay.id("Panel");
 const sizer_size = 8.0;
 const max_canvas_size_pct = 0.8;
@@ -93,6 +95,7 @@ const max_canvas_size_pct = 0.8;
 app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
+canvas: widgets.Canvas = .{},
 _state: State,
 _summary: ?GIFSummary = null,
 _memory: []const u8,
@@ -181,6 +184,10 @@ pub fn contains(_: Self, point: raylib.Vector2) bool {
     return bounding_box.contains(.init(point.x, point.y));
 }
 
+pub fn isMouseInCanvas(self: Self) bool {
+    return self.canvas.isHovered();
+}
+
 pub fn canvasBounds(_: Self) raylib.Rectangle {
     const element_data = clay.getElementData(panel_id);
     if (!element_data.found) {
@@ -239,18 +246,7 @@ pub fn draw(self: *Self) void {
         },
     });
 
-    // Left side of the panel is the view of the canvas.
-    clay.openElement();
-    clay.configureOpenElement(.{
-        .layout = .{
-            .sizing = .{
-                .width = .fixed(self._panel_x_pos),
-                .height = .percent(1.0),
-            },
-        },
-    });
-    clay.closeElement();
-
+    self.canvas.draw(self, self._panel_x_pos);
     self.drawPanel();
 
     clay.closeElement();

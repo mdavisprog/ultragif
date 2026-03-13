@@ -1,3 +1,4 @@
+const Camera = @import("Camera.zig");
 const gif = @import("gif.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
@@ -14,6 +15,7 @@ const Self = @This();
 
 loaded_gif: ?LoadedGIF = null,
 show_sprite_sheet: bool = false,
+camera: Camera = .{},
 
 pub fn init() Self {
     return .{};
@@ -21,6 +23,12 @@ pub fn init() Self {
 
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     self.unloadGIF(allocator);
+}
+
+pub fn focusGIF(self: *Self, bounds: raylib.Rectangle) void {
+    const loaded_gif = self.loaded_gif orelse return;
+    const frame_size = loaded_gif.sprite_sheet.frame_size;
+    self.camera.focusWithin(bounds, frame_size);
 }
 
 pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !void {
