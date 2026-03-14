@@ -58,22 +58,46 @@ pub fn draw(self: Self, container: *Container, width: f32) void {
         },
     });
     {
-        if (controls.button.image(
-            state,
-            .fromLabel("Camera"),
-            .init(state.theme.getIcon(.camera)),
-            .{
-                .layout = .{
-                    .sizing = .fit(0.0, 0.0),
-                },
-                .background_color = .blank,
-                .hovered_color = .blank,
-                .active_color = .blank,
-                .disabled_color = .blank,
+        const result = controls.button.begin(state, .fromLabel("Camera"), .{
+            .layout = .{
+                .sizing = .fit(0.0, 0.0),
             },
-        ) == .clicked) {
+            .background_color = .blank,
+            .hovered_color = .blank,
+            .active_color = .blank,
+            .disabled_color = .blank,
+        });
+
+        var background_color: clay.Color = switch (result) {
+            .hovered => container._state.theme.colors.button_hovered,
+            .pressed => container._state.theme.colors.button_active,
+            else => .blank,
+        };
+
+        switch (result) {
+            .hovered, .pressed => {
+                background_color.a = 180.0;
+            },
+            else => {},
+        }
+
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .image = .{
+                .image_data = container._state.theme.getIcon(.circle),
+            },
+            .background_color = background_color,
+        });
+
+        controls.image.tint(container._state, container._state.theme.getIcon(.camera), .white);
+
+        clay.closeElement();
+
+        if (result == .clicked) {
             container.app.focusGIF(self.bounds());
         }
+
+        controls.button.end();
     }
     clay.closeElement();
 

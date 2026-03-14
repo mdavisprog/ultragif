@@ -12,13 +12,14 @@ pub const Colors = struct {
     button_background: clay.Color = .initu8(148, 137, 121, 255),
     button_hovered: clay.Color = .initu8(160, 150, 134, 255),
     button_active: clay.Color = .initu8(130, 120, 106, 255),
-    button_disabled: clay.Color = .initu8(133, 122, 106, 255),
+    button_disabled: clay.Color = .initu8(110, 100, 86, 255),
     text: clay.Color = .initu8(235, 235, 235, 255),
     text_disabled: clay.Color = .initu8(180, 180, 180, 255),
 };
 
 pub const Icon = enum(u16) {
     camera,
+    circle,
 };
 const icon_count = @typeInfo(Icon).@"enum".fields.len;
 
@@ -30,6 +31,7 @@ pub const Icons = struct {
 
     const svgs = [_]SVG{
         .{ .icon = .camera, .data = @embedFile("../assets/icons/camera.svg") },
+        .{ .icon = .circle, .data = @embedFile("../assets/icons/circle.svg") },
     };
 
     pub const width: f32 = 24.0;
