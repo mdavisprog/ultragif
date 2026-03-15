@@ -87,8 +87,6 @@ pub const GIFSummary = struct {
 /// Manages the GUI
 const Self = @This();
 
-const canvas_id: clay.ElementId = clay.id("Canvas");
-const panel_id: clay.ElementId = clay.id("Panel");
 const sizer_size = 8.0;
 const max_canvas_size_pct = 0.8;
 
@@ -96,6 +94,7 @@ app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
 canvas: widgets.Canvas = .{},
+panel: widgets.Panel = .{},
 _state: State,
 _summary: ?GIFSummary = null,
 _memory: []const u8,
@@ -163,43 +162,8 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     self._state.deinit(allocator);
 }
 
-pub fn contains(_: Self, point: raylib.Vector2) bool {
-    const element_data = clay.getElementData(panel_id);
-    if (!element_data.found) {
-        return false;
-    }
-
-    if (clay.isDebugModeEnabled()) {
-        return true;
-    }
-
-    const sizer_half_size = sizer_size * 0.5;
-    const bounding_box: clay.BoundingBox = .init(
-        element_data.bounding_box.x - sizer_half_size,
-        element_data.bounding_box.y,
-        element_data.bounding_box.width + sizer_half_size,
-        element_data.bounding_box.height,
-    );
-
-    return bounding_box.contains(.init(point.x, point.y));
-}
-
 pub fn isMouseInCanvas(self: Self) bool {
     return self.canvas.isHovered();
-}
-
-pub fn canvasBounds(_: Self) raylib.Rectangle {
-    const element_data = clay.getElementData(panel_id);
-    if (!element_data.found) {
-        return .zero;
-    }
-
-    return .init(
-        0.0,
-        0.0,
-        element_data.bounding_box.x,
-        element_data.bounding_box.height,
-    );
 }
 
 pub fn loadedGIF(self: *Self, allocator: std.mem.Allocator) !void {
@@ -247,7 +211,7 @@ pub fn draw(self: *Self) void {
     });
 
     self.canvas.draw(self, self._panel_x_pos);
-    self.drawPanel();
+    self.panel.draw(self);
 
     clay.closeElement();
 
@@ -415,41 +379,16 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
     }
 }
 
-fn drawPanel(self: Self) void {
-    // Main background panel
-    clay.openElement();
-    clay.configureOpenElement(.{
-        .id = panel_id,
-        .layout = .{
-            .sizing = .{
-                .width = .grow(0.0, 0.0),
-                .height = .percent(1.0),
-            },
-            .layout_direction = .top_to_bottom,
-            .padding = .axes(4, 4),
-            .child_gap = 4,
-        },
-        .background_color = self._state.theme.colors.background,
-    });
-    {
-        panels.info(&self);
-    }
-    clay.closeElement();
-}
-
 fn updatePanelSizer(self: *Self) void {
-    const panel = clay.getElementData(panel_id);
-    if (!panel.found) {
-        return;
-    }
+    const panel_bounds = self.panel.bounds();
 
     const half_width: f32 = 4.0;
     const mouse_pos = raylib.getMousePosition();
     const bounds: raylib.Rectangle = .init(
-        panel.bounding_box.x - half_width,
-        panel.bounding_box.y,
+        panel_bounds.x - half_width,
+        panel_bounds.y,
         half_width * 2.0,
-        panel.bounding_box.height,
+        panel_bounds.height,
     );
 
     if (bounds.contains(mouse_pos)) {

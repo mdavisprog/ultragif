@@ -103,7 +103,7 @@ pub fn main() !void {
 
                 if (app.loaded_gif) |loaded_gif| {
                     animator.set(&loaded_gif.sprite_sheet);
-                    app.focusGIF(gui_container.canvasBounds());
+                    app.focusGIF(gui_container.canvas.bounds());
                 }
             }
         }
