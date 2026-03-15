@@ -1,5 +1,6 @@
 const Animator = @import("Animator.zig");
 const App = @import("App.zig");
+const build_config = @import("build_config");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const Image = @import("Image.zig");
@@ -13,7 +14,7 @@ const version = @import("version");
 pub const std_options = log.options;
 
 pub fn main() !void {
-    std.log.info("Hello UltraGIF! Version {s}", .{version.full});
+    std.log.info("Starting up UltraGIF version {s}...", .{version.full});
 
     var heap = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = heap.deinit();
@@ -30,7 +31,7 @@ pub fn main() !void {
         allocator.destroy(app);
     }
 
-    log.init();
+    log.init(!build_config.shipping);
 
     const config_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.window_highdpi));
     const window_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |

@@ -5,8 +5,9 @@ pub const options: std.Options = .{
     .logFn = onLog,
 };
 
-pub fn init() void {
+pub fn init(_write_to_stdout: bool) void {
     raylib.setTraceLogCallback(onTraceLog);
+    write_to_stdout = _write_to_stdout;
 }
 
 fn onLog(
@@ -17,6 +18,10 @@ fn onLog(
 ) void {
     _ = level;
     _ = scope;
+
+    if (!write_to_stdout) {
+        return;
+    }
 
     var buffer: [1024]u8 = undefined;
     var std_out = std.fs.File.stdout().writer(&buffer);
@@ -50,3 +55,5 @@ fn logLevel(log_level: raylib.TraceLogLevel) []const u8 {
         else => "",
     };
 }
+
+var write_to_stdout: bool = true;
