@@ -1,5 +1,6 @@
 const Animator = @import("Animator.zig");
 const Camera = @import("Camera.zig");
+const canvas = @import("canvas/root.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const raylib = @import("raylib");
@@ -19,15 +20,19 @@ const Self = @This();
 loaded_gif: ?LoadedGIF = null,
 show_sprite_sheet: bool = false,
 animator: Animator = .{},
-camera: Camera = .{},
+canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
 locked_mouse_pos: raylib.Vector2 = .zero,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
+    const canvas_scene = try allocator.create(canvas.Scene);
+    canvas_scene.* = .{};
+
     const result = try allocator.create(Self);
     result.* = .{
+        .canvas_scene = canvas_scene,
         .gui_container = try .init(allocator, result),
         .allocator = allocator,
     };
@@ -37,6 +42,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     self.unloadGIF(allocator);
     self.gui_container.deinit(allocator);
+    allocator.destroy(self.canvas_scene);
 }
 
 pub fn update(self: *Self, delta_time: f32) !void {
@@ -55,29 +61,29 @@ pub fn update(self: *Self, delta_time: f32) !void {
         if (raylib.isMouseButtonPressed(.left)) {
             self.locked_mouse_pos = raylib.getMousePosition();
             raylib.disableCursor();
-            self.camera.panning = true;
+            self.canvas_scene.camera.panning = true;
         }
 
         // Update zoom
         const wheel_delta = raylib.getMouseWheelMoveV();
         if (wheel_delta.y != 0.0) {
-            self.camera.zoomToMouse(wheel_delta.y);
+            self.canvas_scene.camera.zoomToMouse(wheel_delta.y);
         }
     }
 
     // End pan and enable the mouse. Reset position back to begin position
     if (raylib.isMouseButtonReleased(.left)) {
-        if (self.camera.panning) {
+        if (self.canvas_scene.camera.panning) {
             raylib.enableCursor();
             raylib.setMousePosition(
                 @intFromFloat(self.locked_mouse_pos.x),
                 @intFromFloat(self.locked_mouse_pos.y),
             );
         }
-        self.camera.panning = false;
+        self.canvas_scene.camera.panning = false;
     }
 
-    self.camera.update();
+    self.canvas_scene.camera.update();
 
     // Check for dropped files
     if (raylib.isFileDropped()) {
@@ -102,7 +108,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
 
 pub fn draw(self: *Self) void {
      // Draw canvas
-    self.camera.begin();
+    self.canvas_scene.camera.begin();
     raylib.clearBackground(.darkgray);
 
     if (self.loaded_gif) |loaded_gif| {
@@ -121,7 +127,7 @@ pub fn draw(self: *Self) void {
         }
     }
 
-    self.camera.end();
+    self.canvas_scene.camera.end();
 
     // Draw GUI
     self.gui_container.draw();
@@ -130,7 +136,7 @@ pub fn draw(self: *Self) void {
 pub fn focusGIF(self: *Self, bounds: raylib.Rectangle) void {
     const loaded_gif = self.loaded_gif orelse return;
     const frame_size = loaded_gif.sprite_sheet.frame_size;
-    self.camera.focusWithin(bounds, frame_size);
+    self.canvas_scene.camera.focusWithin(bounds, frame_size);
 }
 
 pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !void {
