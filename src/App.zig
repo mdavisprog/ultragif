@@ -1,4 +1,3 @@
-const Animator = @import("Animator.zig");
 const Camera = @import("Camera.zig");
 const canvas = @import("canvas/root.zig");
 const gif = @import("gif.zig");
@@ -20,7 +19,6 @@ const Self = @This();
 
 loaded_gif: ?LoadedGIF = null,
 show_sprite_sheet: bool = false,
-animator: Animator = .{},
 canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
@@ -57,9 +55,6 @@ pub fn update(self: *Self, delta_time: f32) !void {
         else => {},
     }
 
-    // Update sprite sheet animation
-    self.animator.update(delta_time);
-
     const mouse_in_canvas = self.gui_container.isMouseInCanvas();
     self.canvas_scene.update(delta_time, if (mouse_in_canvas) mouse_state else .invalid());
 
@@ -75,7 +70,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
             try self.gui_container.loadedGIF(self.allocator);
 
             if (self.loaded_gif) |loaded_gif| {
-                self.animator.set(&loaded_gif.sprite_sheet);
+                _ = try self.canvas_scene.addAnimation(self.allocator, loaded_gif.sprite_sheet);
                 self.focusGIF(self.gui_container.canvas.bounds());
             }
         }
@@ -86,26 +81,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
 
 pub fn draw(self: *Self) void {
      // Draw canvas
-    self.canvas_scene.camera.begin();
-    raylib.clearBackground(.darkgray);
-
-    if (self.loaded_gif) |loaded_gif| {
-        if (self.show_sprite_sheet) {
-            raylib.drawTextureV(loaded_gif.sprite_sheet.texture, .zero, .white);
-        } else {
-            const frame = self.animator.getFrame();
-            raylib.drawTexturePro(
-                loaded_gif.sprite_sheet.texture,
-                frame,
-                .init(0.0, 0.0, frame.width, frame.height),
-                .zero,
-                0.0,
-                .white,
-            );
-        }
-    }
-
-    self.canvas_scene.camera.end();
+     self.canvas_scene.draw();
 
     // Draw GUI
     self.gui_container.draw();
@@ -138,7 +114,6 @@ pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !voi
 fn unloadGIF(self: *Self, allocator: std.mem.Allocator) void {
     if (self.loaded_gif) |loaded_gif| {
         loaded_gif.format.deinit(allocator);
-        loaded_gif.sprite_sheet.deinit(allocator);
         allocator.free(loaded_gif.file_path);
     }
 }

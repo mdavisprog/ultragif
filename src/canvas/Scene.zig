@@ -2,6 +2,7 @@ const Camera = @import("../Camera.zig");
 const canvas = @import("root.zig");
 const input = @import("../input.zig");
 const raylib = @import("raylib");
+const SpriteSheet = @import("../SpriteSheet.zig");
 const std = @import("std");
 
 /// Holds all objects contained within the Canvas.
@@ -31,20 +32,35 @@ pub fn addShape(
     _shape.* = .init(shape);
     _shape.color = color;
 
-    const object = try allocator.create(canvas.Object);
-    object.* = .init(_shape);
-    try self.objects.append(allocator, object);
+    return try self.addObject(allocator, _shape);
+}
 
-    return object;
+pub fn addAnimation(
+    self: *Self,
+    allocator: std.mem.Allocator,
+    sprite_sheet: SpriteSheet,
+) !*canvas.Object {
+    const animation = try allocator.create(canvas.Animation);
+    animation.* = .init(sprite_sheet);
+
+    return try self.addObject(allocator, animation);
+}
+
+pub fn addObject(self: *Self, allocator: std.mem.Allocator, object: anytype) !*canvas.Object {
+    const result = try allocator.create(canvas.Object);
+    result.* = .init(object);
+    try self.objects.append(allocator, result);
+
+    return result;
 }
 
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
 pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void {
-    _ = delta_time;
-
     var hovered: ?*canvas.Object = null;
     const point = self.camera.mousePosition();
     for (self.objects.items) |object| {
+        object.update(delta_time);
+
         const bounds = object.bounds();
         if (bounds.contains(point)) {
             hovered = object;

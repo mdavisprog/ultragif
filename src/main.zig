@@ -1,4 +1,3 @@
-const Animator = @import("Animator.zig");
 const App = @import("App.zig");
 const build_config = @import("build_config");
 const gif = @import("gif.zig");

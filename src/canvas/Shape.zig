@@ -18,6 +18,11 @@ pub fn init(data: Data) Self {
     return .{ .data = data };
 }
 
+pub fn update(self: *Self, delta_time: f32) void {
+    _ = self;
+    _ = delta_time;
+}
+
 pub fn draw(self: *Self, position: raylib.Vector2) void {
     switch (self.data) {
         .rectangle => |rectangle| {

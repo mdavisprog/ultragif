@@ -3,8 +3,10 @@ const std = @import("std");
 
 /// Dynamic dispatch of functions.
 const VTable = struct {
+    update: *const fn (*anyopaque, f32) void,
     draw: *const fn (*anyopaque, raylib.Vector2) void,
     getSize: *const fn (*const anyopaque) raylib.Vector2,
+    cleanup: ?*const fn (*anyopaque, std.mem.Allocator) void,
     /// This will be supplied internally. Implementations do not need to provide this.
     dtor: *const fn (*anyopaque, std.mem.Allocator) void,
 };
@@ -24,15 +26,25 @@ pub fn init(impl: anytype) Self {
     return .{
         .ptr = impl,
         .vtable = .{
+            .update = @ptrCast(&@field(Impl, "update")),
             .draw = @ptrCast(&@field(Impl, "draw")),
             .getSize = @ptrCast(&@field(Impl, "getSize")),
+            .cleanup = if (std.meta.hasFn(Impl, "cleanup")) @ptrCast(&@field(Impl, "cleanup")) else null,
             .dtor = @ptrCast(&@field(ImplDestructor, "dtor")),
         },
     };
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+    if (self.vtable.cleanup) |cleanup| {
+        cleanup(self.ptr, allocator);
+    }
+
     self.vtable.dtor(self.ptr, allocator);
+}
+
+pub fn update(self: Self, delta_time: f32) void {
+    self.vtable.update(self.ptr, delta_time);
 }
 
 pub fn draw(self: Self) void {
