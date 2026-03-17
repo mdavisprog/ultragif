@@ -42,6 +42,8 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     self.unloadGIF(allocator);
     self.gui_container.deinit(allocator);
+
+    self.canvas_scene.deinit(allocator);
     allocator.destroy(self.canvas_scene);
 }
 
