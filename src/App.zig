@@ -3,6 +3,7 @@ const Camera = @import("Camera.zig");
 const canvas = @import("canvas/root.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
+const input = @import("input.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
@@ -23,7 +24,6 @@ animator: Animator = .{},
 canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
-locked_mouse_pos: raylib.Vector2 = .zero,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
@@ -48,6 +48,8 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
 }
 
 pub fn update(self: *Self, delta_time: f32) !void {
+    const mouse_state: input.mouse.State = .current();
+
     switch (self.viewport.nextEvent()) {
         .size_changed => |size| {
             self.gui_container.frameResized(size.previous, size.current);
@@ -58,34 +60,8 @@ pub fn update(self: *Self, delta_time: f32) !void {
     // Update sprite sheet animation
     self.animator.update(delta_time);
 
-    if (self.gui_container.isMouseInCanvas()) {
-        // Begin pan and disable the mouse
-        if (raylib.isMouseButtonPressed(.left)) {
-            self.locked_mouse_pos = raylib.getMousePosition();
-            raylib.disableCursor();
-            self.canvas_scene.camera.panning = true;
-        }
-
-        // Update zoom
-        const wheel_delta = raylib.getMouseWheelMoveV();
-        if (wheel_delta.y != 0.0) {
-            self.canvas_scene.camera.zoomToMouse(wheel_delta.y);
-        }
-    }
-
-    // End pan and enable the mouse. Reset position back to begin position
-    if (raylib.isMouseButtonReleased(.left)) {
-        if (self.canvas_scene.camera.panning) {
-            raylib.enableCursor();
-            raylib.setMousePosition(
-                @intFromFloat(self.locked_mouse_pos.x),
-                @intFromFloat(self.locked_mouse_pos.y),
-            );
-        }
-        self.canvas_scene.camera.panning = false;
-    }
-
-    self.canvas_scene.camera.update();
+    const mouse_in_canvas = self.gui_container.isMouseInCanvas();
+    self.canvas_scene.update(delta_time, if (mouse_in_canvas) mouse_state else .invalid());
 
     // Check for dropped files
     if (raylib.isFileDropped()) {

@@ -4,13 +4,17 @@ const std = @import("std");
 const Self = @This();
 
 state: raylib.Camera2D = .{},
-panning: bool = false,
 zoom_step: f32 = 0.05,
 
 pub fn reset(self: *Self) void {
     self.state.target = .{};
     self.state.offset = .{};
     self.state.zoom = 1.0;
+}
+
+pub fn mousePosition(self: Self) raylib.Vector2 {
+    const mouse_pos = raylib.getMousePosition();
+    return raylib.getScreenToWorld2D(mouse_pos, self.state);
 }
 
 pub fn zoomToMouse(self: *Self, delta: f32) void {
@@ -31,11 +35,8 @@ pub fn focusWithin(self: *Self, bounds: raylib.Rectangle, target_size: raylib.Ve
     );
 }
 
-pub fn update(self: *Self) void {
-    if (self.panning) {
-        const mouse_delta = raylib.getMouseDelta().scale(-1.0 / self.state.zoom);
-        self.state.target.addMut(mouse_delta);
-    }
+pub fn move(self: *Self, delta: raylib.Vector2) void {
+    self.state.target.addMut(delta);
 }
 
 pub fn begin(self: Self) void {

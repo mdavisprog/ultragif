@@ -25,3 +25,9 @@ pub fn draw(self: *Self, position: raylib.Vector2) void {
         },
     }
 }
+
+pub fn getSize(self: *const Self) raylib.Vector2 {
+    return switch (self.data) {
+        .rectangle => |rectangle| rectangle.size,
+    };
+}

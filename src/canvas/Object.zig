@@ -4,6 +4,7 @@ const std = @import("std");
 /// Dynamic dispatch of functions.
 const VTable = struct {
     draw: *const fn (*anyopaque, raylib.Vector2) void,
+    getSize: *const fn (*const anyopaque) raylib.Vector2,
     /// This will be supplied internally. Implementations do not need to provide this.
     dtor: *const fn (*anyopaque, std.mem.Allocator) void,
 };
@@ -24,6 +25,7 @@ pub fn init(impl: anytype) Self {
         .ptr = impl,
         .vtable = .{
             .draw = @ptrCast(&@field(Impl, "draw")),
+            .getSize = @ptrCast(&@field(Impl, "getSize")),
             .dtor = @ptrCast(&@field(ImplDestructor, "dtor")),
         },
     };
@@ -35,6 +37,11 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
 
 pub fn draw(self: Self) void {
     self.vtable.draw(self.ptr, self.position);
+}
+
+pub fn bounds(self: Self) raylib.Rectangle {
+    const size = self.vtable.getSize(self.ptr);
+    return .init(self.position.x, self.position.y, size.x, size.y);
 }
 
 fn Destructor(comptime T: type) type {

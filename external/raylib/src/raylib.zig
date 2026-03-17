@@ -693,6 +693,10 @@ pub fn drawRectangleV(position: Vector2, size: Vector2, color: Color) void {
     DrawRectangleV(position, size, color);
 }
 
+pub fn drawRectangleLinesEx(rec: Rectangle, line_thick: f32, color: Color) void {
+    DrawRectangleLinesEx(rec, line_thick, color);
+}
+
 pub fn drawRectangleRounded(rec: Rectangle, roundness: f32, segments: i32, color: Color) void {
     DrawRectangleRounded(rec, roundness, @intCast(segments), color);
 }
@@ -895,6 +899,7 @@ extern fn SetMouseCursor(cursor: c_int) void;
 extern fn DrawRing(center: Vector2, inner_radius: f32, outer_radius: f32, start_angle: f32, end_angle: f32, segments: c_int, color: Color) void;
 extern fn DrawRectangle(pos_x: c_int, pos_y: c_int, width: c_int, height: c_int, color: Color) void;
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
+extern fn DrawRectangleLinesEx(rec: Rectangle, line_thick: f32, color: Color) void;
 extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, color: Color) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
