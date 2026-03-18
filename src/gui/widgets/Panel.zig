@@ -1,3 +1,4 @@
+const canvas = @import("../../canvas/root.zig");
 const clay = @import("clay");
 const Container = @import("../Container.zig");
 const controls = @import("../controls/root.zig");
@@ -10,7 +11,9 @@ const Self = @This();
 
 const id: clay.ElementId = .fromLabel("Panel");
 
-pub fn draw(_: Self, container: *const Container) void {
+animation_count: [24]u8 = @splat(0),
+
+pub fn draw(self: *Self, container: *const Container) void {
     // Main background panel
     clay.openElement();
     clay.configureOpenElement(.{
@@ -27,7 +30,7 @@ pub fn draw(_: Self, container: *const Container) void {
         .background_color = container._state.theme.colors.background,
     });
     {
-        drawInfo(container);
+        self.drawAnimations(container);
     }
     clay.closeElement();
 }
@@ -90,4 +93,19 @@ fn drawInfoTitle(state: State, text: []const u8) void {
         controls.text.label(state, text, .{ .text_alignment = .center });
     }
     clay.closeElement();
+}
+
+fn drawAnimations(self: *Self, container: *const Container) void {
+    const allocator = container.app.allocator;
+
+    const animations = container.app.canvas_scene.getObjects(allocator, canvas.Animation) catch |err| {
+        std.debug.panic("Failed to get canvas objects. Error: {}", .{err});
+    };
+    defer allocator.free(animations);
+
+    _ = std.fmt.bufPrint(&self.animation_count, "Count: {}", .{animations.len}) catch {
+        std.debug.panic("Buffer too small.", .{});
+    };
+
+    controls.text.label(container._state, &self.animation_count, .{});
 }
