@@ -103,7 +103,7 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
         },
         .move_object => {
             if (self.selected) |selected| {
-                selected.position.addMut(mouse_delta.scale(-1.0));
+                selected.position = selected.position.add(mouse_delta.scale(-1.0)).round();
             }
 
             if (mouse_button_released) {

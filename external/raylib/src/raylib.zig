@@ -35,6 +35,10 @@ pub const Vector2 = extern struct {
     pub fn eql(self: Vector2, value: Vector2) bool {
         return self.x == value.x and self.y == value.y;
     }
+
+    pub fn round(self: Vector2) Vector2 {
+        return .init(std.math.round(self.x), std.math.round(self.y));
+    }
 };
 
 pub const Color = extern struct {

@@ -36,7 +36,7 @@ pub fn focusWithin(self: *Self, bounds: raylib.Rectangle, target_size: raylib.Ve
 }
 
 pub fn move(self: *Self, delta: raylib.Vector2) void {
-    self.state.target.addMut(delta);
+    self.state.target = self.state.target.add(delta).round();
 }
 
 pub fn begin(self: Self) void {
