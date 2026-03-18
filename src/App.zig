@@ -67,7 +67,9 @@ pub fn update(self: *Self, delta_time: f32) !void {
         const paths = files.getPaths();
         for (paths) |path| {
             const _path = std.mem.span(path);
-            const sprite_sheet = try self.gifToSpriteSheet(_path);
+            const sprite_sheet = self.gifToSpriteSheet(_path) catch {
+                continue;
+            };
 
             const animation = try self.canvas_scene.addAnimation(self.allocator, sprite_sheet);
             animation.position = position;
@@ -80,8 +82,8 @@ pub fn update(self: *Self, delta_time: f32) !void {
 }
 
 pub fn draw(self: *Self) void {
-     // Draw canvas
-     self.canvas_scene.draw();
+    // Draw canvas
+    self.canvas_scene.draw();
 
     // Draw GUI
     self.gui_container.draw();

@@ -1046,7 +1046,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
 
     result.header = try .init(&reader.interface);
     if (!result.header.isValid()) {
-        std.debug.print("Given file '{s}' is not a valid GIF.", .{path});
+        std.log.warn("Given file '{s}' is not a valid GIF.", .{path});
         return Error.InvalidHeader;
     }
 
@@ -1056,7 +1056,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
     defer blocks.deinit(allocator);
 
     var label = try getNextLabel(&reader.interface) orelse {
-        std.debug.print("Failed to read GIF file after logical screen descriptor!", .{});
+        std.log.warn("Failed to read GIF file after logical screen descriptor!", .{});
         return Error.InvalidFormat;
     };
 
