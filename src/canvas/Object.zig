@@ -1,3 +1,4 @@
+const hash = @import("../hash.zig");
 const raylib = @import("raylib");
 const std = @import("std");
 
@@ -18,6 +19,7 @@ const Self = @This();
 ptr: *anyopaque,
 vtable: VTable,
 position: raylib.Vector2 = .zero,
+type_id: u32 = 0,
 
 /// This will take ownership of the given implementation.
 pub fn init(impl: anytype) Self {
@@ -32,6 +34,7 @@ pub fn init(impl: anytype) Self {
             .cleanup = if (std.meta.hasFn(Impl, "cleanup")) @ptrCast(&@field(Impl, "cleanup")) else null,
             .dtor = @ptrCast(&@field(ImplDestructor, "dtor")),
         },
+        .type_id = hash.hashStruct(Impl),
     };
 }
 

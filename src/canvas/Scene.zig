@@ -1,5 +1,6 @@
 const Camera = @import("../Camera.zig");
 const canvas = @import("root.zig");
+const hash = @import("../hash.zig");
 const input = @import("../input.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("../SpriteSheet.zig");
@@ -52,6 +53,20 @@ pub fn addObject(self: *Self, allocator: std.mem.Allocator, object: anytype) !*c
     try self.objects.append(allocator, result);
 
     return result;
+}
+
+/// Returns a list of objects that matches the specific type. The returned array is owned by the caller.
+pub fn getObjects(self: Self, allocator: std.mem.Allocator, comptime T: type) ![]const *canvas.Object {
+    var result: std.ArrayListUnmanaged(*canvas.Object) = .empty;
+
+    const type_id = hash.hashStruct(T);
+    for (self.objects.items) |object| {
+        if (object.type_id == type_id) {
+            try result.append(allocator, object);
+        }
+    }
+
+    return try result.toOwnedSlice(allocator);
 }
 
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
