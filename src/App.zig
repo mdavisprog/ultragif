@@ -63,16 +63,16 @@ pub fn update(self: *Self, delta_time: f32) !void {
         const files = raylib.loadDroppedFiles();
         defer raylib.unloadDroppedFiles(files);
 
+        var position: raylib.Vector2 = .zero;
         const paths = files.getPaths();
-        if (paths.len > 0) {
-            const path = std.mem.span(paths[0]);
-            try self.loadGIF(self.allocator, path);
-            try self.gui_container.loadedGIF(self.allocator);
+        for (paths) |path| {
+            const _path = std.mem.span(path);
+            const sprite_sheet = try self.gifToSpriteSheet(_path);
 
-            if (self.loaded_gif) |loaded_gif| {
-                _ = try self.canvas_scene.addAnimation(self.allocator, loaded_gif.sprite_sheet);
-                self.focusGIF(self.gui_container.canvas.bounds());
-            }
+            const animation = try self.canvas_scene.addAnimation(self.allocator, sprite_sheet);
+            animation.position = position;
+
+            position.x += sprite_sheet.frame_size.x;
         }
     }
 
@@ -116,4 +116,14 @@ fn unloadGIF(self: *Self, allocator: std.mem.Allocator) void {
         loaded_gif.format.deinit(allocator);
         allocator.free(loaded_gif.file_path);
     }
+}
+
+fn gifToSpriteSheet(self: Self, path: []const u8) !SpriteSheet {
+    const format = try gif.load(self.allocator, path);
+    defer format.deinit(self.allocator);
+
+    const sprite_sheet: SpriteSheet = try .init(self.allocator, format);
+    std.log.info("Successfully loaded GIF '{s}.", .{path});
+
+    return sprite_sheet;
 }
