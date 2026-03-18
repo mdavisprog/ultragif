@@ -4,7 +4,6 @@ const clay = @import("clay");
 const controls = @import("controls/root.zig");
 const gif = @import("../gif.zig");
 const input = @import("../input.zig");
-const panels = @import("panels.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
