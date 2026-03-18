@@ -59,6 +59,10 @@ pub fn bounds(self: Self) raylib.Rectangle {
     return .init(self.position.x, self.position.y, size.x, size.y);
 }
 
+pub fn as(self: Self, comptime T: type) *T {
+    return @ptrCast(@alignCast(self.ptr));
+}
+
 fn Destructor(comptime T: type) type {
     return struct {
         fn dtor(self: *T, allocator: std.mem.Allocator) void {

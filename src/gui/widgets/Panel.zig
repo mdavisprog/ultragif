@@ -5,6 +5,7 @@ const controls = @import("../controls/root.zig");
 const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
+const units = @import("../../units.zig");
 
 /// The right side panel containing information and tools for organizing/manipulating GIFs.
 const Self = @This();
@@ -12,6 +13,7 @@ const Self = @This();
 const id: clay.ElementId = .fromLabel("Panel");
 
 animation_count: [24]u8 = @splat(0),
+memory_text: [24]u8 = @splat(0),
 
 pub fn draw(self: *Self, container: *const Container) void {
     // Main background panel
@@ -103,9 +105,22 @@ fn drawAnimations(self: *Self, container: *const Container) void {
     };
     defer allocator.free(animations);
 
-    _ = std.fmt.bufPrint(&self.animation_count, "Count: {}", .{animations.len}) catch {
-        std.debug.panic("Buffer too small.", .{});
-    };
+    var bytes: usize = 0;
+    for (animations) |animation| {
+        const anim = animation.as(canvas.Animation);
+        bytes += anim.sprite_sheet.memorySize();
+    }
+
+    const memory: units.Memory = .fromBytes(bytes);
+    copyText(&self.animation_count, "Count: {}", .{animations.len});
+    copyText(&self.memory_text, "Memory: {}{s}", .{ memory.amount, memory.symbolString() });
 
     controls.text.label(container._state, &self.animation_count, .{});
+    controls.text.label(container._state, &self.memory_text, .{});
+}
+
+fn copyText(buffer: []u8, comptime format: []const u8, args: anytype) void {
+    _ = std.fmt.bufPrint(buffer, format, args) catch {
+        std.debug.panic("Buffer too small.", .{});
+    };
 }
