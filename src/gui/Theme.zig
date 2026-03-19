@@ -19,13 +19,16 @@ pub const Colors = struct {
 };
 
 pub const Constants = struct {
+    button_corner_radius: f32 = 0.5,
     separator_horizontal_size: f32 = 4.0,
     separator_vertical_size: f32 = 6.0,
 };
 
 pub const Icon = enum(u16) {
+    animated_images,
     camera,
     circle,
+    texture,
 };
 const icon_count = @typeInfo(Icon).@"enum".fields.len;
 
@@ -36,8 +39,10 @@ pub const Icons = struct {
     };
 
     const svgs = [_]SVG{
+        .{ .icon = .animated_images, .data = @embedFile("../assets/icons/animated_images.svg") },
         .{ .icon = .camera, .data = @embedFile("../assets/icons/camera.svg") },
         .{ .icon = .circle, .data = @embedFile("../assets/icons/circle.svg") },
+        .{ .icon = .texture, .data = @embedFile("../assets/icons/texture.svg") },
     };
 
     pub const width: f32 = 24.0;

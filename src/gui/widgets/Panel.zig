@@ -5,16 +5,21 @@ const controls = @import("../controls/root.zig");
 const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
+const Theme = @import("../Theme.zig");
 const units = @import("../../units.zig");
+
+pub const Category = enum {
+    animations,
+    texture,
+};
 
 /// The right side panel containing information and tools for organizing/manipulating GIFs.
 const Self = @This();
-
 const id: clay.ElementId = .fromLabel("Panel");
 
-pub fn draw(self: *Self, container: *Container) void {
-    _ = self;
+category: Category = .animations,
 
+pub fn draw(self: *Self, container: *Container) void {
     // Main background panel
     clay.openElement();
     clay.configureOpenElement(.{
@@ -31,9 +36,20 @@ pub fn draw(self: *Self, container: *Container) void {
         .background_color = container._state.theme.colors.background,
     });
     {
-        drawAnimations(container);
+        switch (self.category) {
+            .animations => {
+                drawAnimations(container);
+            },
+            .texture => {
+                drawTexturesInfo(container);
+            },
+        }
     }
     clay.closeElement();
+
+    controls.separator.vertical(container._state);
+
+    self.drawCategories(container);
 }
 
 pub fn bounds(_: Self) raylib.Rectangle {
@@ -94,6 +110,8 @@ fn drawTitle(state: State, text: []const u8) void {
         controls.text.label(state, text, .{ .text_alignment = .center });
     }
     clay.closeElement();
+
+    controls.separator.horizontal(state);
 }
 
 fn drawTexturesInfo(container: *Container) void {
@@ -107,8 +125,9 @@ fn drawTexturesInfo(container: *Container) void {
         count += 1;
     }
 
-    const texture_count = formatString(allocator, "Count: {}", .{count});
+    drawTitle(container._state, "Textures");
 
+    const texture_count = formatString(allocator, "Count: {}", .{count});
     const memory: units.Memory = .fromBytes(bytes);
     const memory_text = formatString(
         allocator,
@@ -135,6 +154,73 @@ fn drawAnimations(container: *Container) void {
         const name = _animation.texture.name();
         controls.text.label(container._state, formatString(allocator, "{s}", .{name}), .{});
     }
+}
+
+fn drawCategories(self: *Self, container: *Container) void {
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .{
+                .height = .percent(1.0),
+            },
+            .layout_direction = .top_to_bottom,
+            .padding = .axes(8, 8),
+            .child_gap = 4,
+        },
+        .background_color = container._state.theme.colors.background,
+    });
+    {
+        const count = @typeInfo(Category).@"enum".fields.len;
+        for (0..count) |i| {
+            self.drawCategoryIcon(container, @enumFromInt(i));
+        }
+    }
+    clay.closeElement();
+}
+
+fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void {
+    const is_selected = self.category == category;
+    const background_color: clay.Color = if (is_selected)
+        container._state.theme.colors.button_background
+    else
+        .blank;
+
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .corner_radius = .all(0.5),
+        .background_color = background_color,
+    });
+
+    const icon = switch (category) {
+        .animations => Theme.Icon.animated_images,
+        .texture => Theme.Icon.texture,
+    };
+
+    const layout: clay.LayoutConfig = .{
+        .child_alignment = .init(.center, .center),
+        .padding = .splat(4.0),
+    };
+
+    const result = controls.button.image(
+        container._state,
+        getCategoryId(category),
+        .{ .texture = container._state.theme.getIcon(icon) },
+        .{ .background_color = .blank, .layout = layout },
+    );
+
+    if (result == .clicked) {
+        self.category = category;
+    }
+
+    clay.closeElement();
+}
+
+fn getCategoryId(category: Category) clay.ElementId {
+    const prefix = "category_";
+    return switch (category) {
+        .animations => clay.idc(prefix ++ "animation"),
+        .texture => clay.idc(prefix ++ "texture"),
+    };
 }
 
 fn formatString(allocator: std.mem.Allocator, comptime format: []const u8, args: anytype) []const u8 {

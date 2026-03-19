@@ -17,6 +17,7 @@ pub const Config = struct {
         .child_alignment = .init(.center, .center),
         .padding = .axes(4, 2),
     },
+    corner_radius: ?f32 = null,
 };
 
 pub const TextConfig = struct {
@@ -95,11 +96,17 @@ pub fn begin(state: State, id: clay.ElementId, config: Config) Result {
         break :blk .none;
     };
 
+    const corner_radius = if (config.corner_radius) |radius|
+        radius
+    else
+        state.theme.constants.button_corner_radius;
+
     clay.openElement();
     clay.configureOpenElement(.{
         .id = id,
         .layout = config.layout,
         .background_color = color,
+        .corner_radius = .all(corner_radius),
     });
 
     return result;
