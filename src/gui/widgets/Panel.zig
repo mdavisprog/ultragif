@@ -12,7 +12,7 @@ const Self = @This();
 
 const id: clay.ElementId = .fromLabel("Panel");
 
-animation_count: [24]u8 = @splat(0),
+texture_count: [24]u8 = @splat(0),
 memory_text: [24]u8 = @splat(0),
 
 pub fn draw(self: *Self, container: *const Container) void {
@@ -32,7 +32,7 @@ pub fn draw(self: *Self, container: *const Container) void {
         .background_color = container._state.theme.colors.background,
     });
     {
-        self.drawAnimations(container);
+        self.drawTexturesInfo(container);
     }
     clay.closeElement();
 }
@@ -97,29 +97,25 @@ fn drawInfoTitle(state: State, text: []const u8) void {
     clay.closeElement();
 }
 
-fn drawAnimations(self: *Self, container: *const Container) void {
-    const allocator = container.app.allocator;
-
-    const animations = container.app.canvas_scene.getObjects(allocator, canvas.Animation) catch |err| {
-        std.debug.panic("Failed to get canvas objects. Error: {}", .{err});
-    };
-    defer allocator.free(animations);
-
+fn drawTexturesInfo(self: *Self, container: *const Container) void {
     var bytes: usize = 0;
+    var count: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
     while (textures.next()) |texture| {
         bytes += texture.*.sheet.memorySize();
+        count += 1;
     }
 
     const memory: units.Memory = .fromBytes(bytes);
-    copyText(&self.animation_count, "Count: {}", .{animations.len});
-    copyText(&self.memory_text, "Memory: {}{s}", .{ memory.amount, memory.symbolString() });
+    copyText(&self.texture_count, "Count: {}", .{count});
+    copyText(&self.memory_text, "Memory: {} {s}", .{ memory.amount, memory.symbolString() });
 
-    controls.text.label(container._state, &self.animation_count, .{});
+    controls.text.label(container._state, &self.texture_count, .{});
     controls.text.label(container._state, &self.memory_text, .{});
 }
 
 fn copyText(buffer: []u8, comptime format: []const u8, args: anytype) void {
+    @memset(buffer, 0);
     _ = std.fmt.bufPrint(buffer, format, args) catch {
         std.debug.panic("Buffer too small.", .{});
     };
