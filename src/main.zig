@@ -24,7 +24,11 @@ pub fn main() !void {
 
     log.init(!build_config.shipping);
 
-    const config_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.window_highdpi));
+    const config_flags = if (build_config.highdpi)
+        @as(u32, @intFromEnum(raylib.ConfigFlags.window_highdpi))
+    else
+        0;
+
     const window_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |
         @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable));
 

@@ -72,7 +72,11 @@ fn addOptions(b: *std.Build, module: *std.Build.Module) void {
     module.addOptions("version", version_options);
 
     const shipping = b.option(bool, "shipping", "Enables shipping configuration") orelse false;
+    const highdpi = b.option(bool, "highdpi", "Enables high DPI support for rendering") orelse false;
+
     const build_config = b.addOptions();
     build_config.addOption(bool, "shipping", shipping);
+    build_config.addOption(bool, "highdpi", highdpi);
+
     module.addOptions("build_config", build_config);
 }
