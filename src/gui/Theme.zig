@@ -15,6 +15,12 @@ pub const Colors = struct {
     button_disabled: clay.Color = .initu8(110, 100, 86, 255),
     text: clay.Color = .initu8(235, 235, 235, 255),
     text_disabled: clay.Color = .initu8(180, 180, 180, 255),
+    separator: clay.Color = .initu8(57, 62, 70, 255),
+};
+
+pub const Constants = struct {
+    separator_horizontal_size: f32 = 4.0,
+    separator_vertical_size: f32 = 6.0,
 };
 
 pub const Icon = enum(u16) {
@@ -93,6 +99,7 @@ pub const Icons = struct {
 const Self = @This();
 
 colors: Colors = .{},
+constants: Constants = .{},
 icons: Icons,
 
 pub fn init(allocator: std.mem.Allocator) !Self {
