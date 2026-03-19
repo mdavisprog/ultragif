@@ -31,7 +31,7 @@ pub fn draw(self: *Self, container: *Container) void {
         .background_color = container._state.theme.colors.background,
     });
     {
-        drawTexturesInfo(container);
+        drawAnimations(container);
     }
     clay.closeElement();
 }
@@ -56,7 +56,7 @@ fn drawInfo(container: *const Container) void {
     else
         "Drop file";
 
-    drawInfoTitle(container._state, file_name);
+    drawTitle(container._state, file_name);
 
     const disabled = container.app.loaded_gif == null;
     const show_texture_text = if (container.app.show_sprite_sheet)
@@ -80,7 +80,7 @@ fn drawInfo(container: *const Container) void {
     controls.text.label(container._state, summary.uncompressed_size, .{});
 }
 
-fn drawInfoTitle(state: State, text: []const u8) void {
+fn drawTitle(state: State, text: []const u8) void {
     clay.openElement();
     clay.configureOpenElement(.{
         .layout = .{
@@ -118,6 +118,23 @@ fn drawTexturesInfo(container: *Container) void {
 
     controls.text.label(container._state, texture_count, .{});
     controls.text.label(container._state, memory_text, .{});
+}
+
+fn drawAnimations(container: *Container) void {
+    const allocator = container._state.getAllocator();
+
+    const animations = container.app.canvas_scene.getObjects(allocator, canvas.Animation) catch |err| {
+        std.debug.panic("Failed to get animations from canvas. Error: {}", .{err});
+    };
+    defer allocator.free(animations);
+
+    drawTitle(container._state, "Canvas");
+
+    for (animations) |animation| {
+        const _animation = animation.as(canvas.Animation);
+        const name = _animation.texture.name();
+        controls.text.label(container._state, formatString(allocator, "{s}", .{name}), .{});
+    }
 }
 
 fn formatString(allocator: std.mem.Allocator, comptime format: []const u8, args: anytype) []const u8 {

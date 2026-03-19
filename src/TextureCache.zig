@@ -5,6 +5,10 @@ const std = @import("std");
 pub const Texture = struct {
     path: []const u8,
     sheet: SpriteSheet,
+
+    pub fn name(self: Texture) []const u8 {
+        return std.fs.path.stem(self.path);
+    }
 };
 
 /// Stores all loaded sprite sheets.
