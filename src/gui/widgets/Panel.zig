@@ -12,10 +12,9 @@ const Self = @This();
 
 const id: clay.ElementId = .fromLabel("Panel");
 
-texture_count: [24]u8 = @splat(0),
-memory_text: [24]u8 = @splat(0),
+pub fn draw(self: *Self, container: *Container) void {
+    _ = self;
 
-pub fn draw(self: *Self, container: *const Container) void {
     // Main background panel
     clay.openElement();
     clay.configureOpenElement(.{
@@ -32,7 +31,7 @@ pub fn draw(self: *Self, container: *const Container) void {
         .background_color = container._state.theme.colors.background,
     });
     {
-        self.drawTexturesInfo(container);
+        drawTexturesInfo(container);
     }
     clay.closeElement();
 }
@@ -97,7 +96,9 @@ fn drawInfoTitle(state: State, text: []const u8) void {
     clay.closeElement();
 }
 
-fn drawTexturesInfo(self: *Self, container: *const Container) void {
+fn drawTexturesInfo(container: *Container) void {
+    const allocator = container._state.getAllocator();
+
     var bytes: usize = 0;
     var count: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
@@ -106,17 +107,23 @@ fn drawTexturesInfo(self: *Self, container: *const Container) void {
         count += 1;
     }
 
-    const memory: units.Memory = .fromBytes(bytes);
-    copyText(&self.texture_count, "Count: {}", .{count});
-    copyText(&self.memory_text, "Memory: {} {s}", .{ memory.amount, memory.symbolString() });
+    const texture_count = formatString(allocator, "Count: {}", .{count});
 
-    controls.text.label(container._state, &self.texture_count, .{});
-    controls.text.label(container._state, &self.memory_text, .{});
+    const memory: units.Memory = .fromBytes(bytes);
+    const memory_text = formatString(
+        allocator,
+        "Memory: {} {s}",
+        .{ memory.amount, memory.symbolString() },
+    );
+
+    controls.text.label(container._state, texture_count, .{});
+    controls.text.label(container._state, memory_text, .{});
 }
 
-fn copyText(buffer: []u8, comptime format: []const u8, args: anytype) void {
-    @memset(buffer, 0);
-    _ = std.fmt.bufPrint(buffer, format, args) catch {
-        std.debug.panic("Buffer too small.", .{});
+fn formatString(allocator: std.mem.Allocator, comptime format: []const u8, args: anytype) []const u8 {
+    const result = std.fmt.allocPrint(allocator, format, args) catch |err| {
+        std.debug.panic("Failed to allocate string. Error: {}", .{err});
     };
+
+    return result;
 }
