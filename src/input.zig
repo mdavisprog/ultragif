@@ -25,6 +25,7 @@ pub const mouse = struct {
                 if (down) result.down.set(i);
             }
 
+            result.position = raylib.getMousePosition();
             result.wheel = raylib.getMouseWheelMoveV();
 
             return result;

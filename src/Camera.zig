@@ -17,6 +17,10 @@ pub fn mousePosition(self: Self) raylib.Vector2 {
     return raylib.getScreenToWorld2D(mouse_pos, self.state);
 }
 
+pub fn mousePositionFrom(self: Self, point: raylib.Vector2) raylib.Vector2 {
+    return raylib.getScreenToWorld2D(point, self.state);
+}
+
 pub fn zoomToMouse(self: *Self, delta: f32) void {
     const mouse_pos = raylib.getMousePosition();
     const world_pos = raylib.getScreenToWorld2D(mouse_pos, self.state);

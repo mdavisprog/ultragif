@@ -14,6 +14,7 @@ const Self = @This();
 camera: Camera = .{},
 objects: std.ArrayListUnmanaged(*canvas.Object) = .empty,
 selected: ?*canvas.Object = null,
+hovered: ?*canvas.Object = null,
 locked_mouse_pos: raylib.Vector2 = .zero,
 action: Action = .none,
 
@@ -73,20 +74,20 @@ pub fn getObjects(self: Self, allocator: std.mem.Allocator, comptime T: type) ![
 
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
 pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void {
-    var hovered: ?*canvas.Object = null;
-    const point = self.camera.mousePosition();
+    self.hovered = null;
+    const point = self.camera.mousePositionFrom(mouse_state.position);
     for (self.objects.items) |object| {
         object.update(delta_time);
 
         const bounds = object.bounds();
         if (bounds.contains(point)) {
-            hovered = object;
+            self.hovered = object;
         }
     }
 
     if (mouse_state.isPressed(.left)) {
-        if (hovered) |_hovered| {
-            self.selected = _hovered;
+        if (self.hovered) |hovered| {
+            self.selected = hovered;
             self.action = .move_object;
         } else {
             self.selected = null;
@@ -139,6 +140,10 @@ pub fn draw(self: Self) void {
 
     for (self.objects.items) |object| {
         object.draw();
+    }
+
+    if (self.hovered) |hovered| {
+        raylib.drawRectangleLinesEx(hovered.bounds(), 1.0, .yellow);
     }
 
     if (self.selected) |selected| {
