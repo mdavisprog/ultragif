@@ -6,6 +6,7 @@ const input = @import("input.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("SpriteSheet.zig");
 const std = @import("std");
+const TextureCache = @import("TextureCache.zig");
 const Viewport = @import("Viewport.zig");
 
 pub const LoadedGIF = struct {
@@ -22,6 +23,7 @@ show_sprite_sheet: bool = false,
 canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
+texture_cache: TextureCache,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
@@ -32,17 +34,22 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
     result.* = .{
         .canvas_scene = canvas_scene,
         .gui_container = try .init(allocator, result),
+        .texture_cache = .init(),
         .allocator = allocator,
     };
     return result;
 }
 
-pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+pub fn deinit(self: *Self) void {
+    const allocator = self.allocator;
+
     self.unloadGIF(allocator);
     self.gui_container.deinit(allocator);
 
     self.canvas_scene.deinit(allocator);
     allocator.destroy(self.canvas_scene);
+
+    self.texture_cache.deinit(allocator);
 }
 
 pub fn update(self: *Self, delta_time: f32) !void {
@@ -67,14 +74,14 @@ pub fn update(self: *Self, delta_time: f32) !void {
         const paths = files.getPaths();
         for (paths) |path| {
             const _path = std.mem.span(path);
-            const sprite_sheet = self.gifToSpriteSheet(_path) catch {
+            const texture = self.texture_cache.loadGIF(self.allocator, _path) catch {
                 continue;
             };
 
-            const animation = try self.canvas_scene.addAnimation(self.allocator, sprite_sheet);
+            const animation = try self.canvas_scene.addAnimation(self.allocator, texture);
             animation.position = position;
 
-            position.x += sprite_sheet.frame_size.x;
+            position.x += texture.sheet.frame_size.x;
         }
     }
 

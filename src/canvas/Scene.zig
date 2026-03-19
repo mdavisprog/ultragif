@@ -3,8 +3,10 @@ const canvas = @import("root.zig");
 const hash = @import("../hash.zig");
 const input = @import("../input.zig");
 const raylib = @import("raylib");
-const SpriteSheet = @import("../SpriteSheet.zig");
 const std = @import("std");
+const TextureCache = @import("../TextureCache.zig");
+
+const Texture = TextureCache.Texture;
 
 /// Holds all objects contained within the Canvas.
 const Self = @This();
@@ -39,10 +41,10 @@ pub fn addShape(
 pub fn addAnimation(
     self: *Self,
     allocator: std.mem.Allocator,
-    sprite_sheet: SpriteSheet,
+    texture: *Texture,
 ) !*canvas.Object {
     const animation = try allocator.create(canvas.Animation);
-    animation.* = .init(sprite_sheet);
+    animation.* = .init(texture);
 
     return try self.addObject(allocator, animation);
 }

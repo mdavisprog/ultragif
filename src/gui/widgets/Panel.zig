@@ -106,9 +106,9 @@ fn drawAnimations(self: *Self, container: *const Container) void {
     defer allocator.free(animations);
 
     var bytes: usize = 0;
-    for (animations) |animation| {
-        const anim = animation.as(canvas.Animation);
-        bytes += anim.sprite_sheet.memorySize();
+    var textures = container.app.texture_cache.textures.valueIterator();
+    while (textures.next()) |texture| {
+        bytes += texture.*.sheet.memorySize();
     }
 
     const memory: units.Memory = .fromBytes(bytes);

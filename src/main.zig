@@ -35,7 +35,7 @@ pub fn main() !void {
 
     const app: *App = try .init(allocator);
     defer {
-        app.deinit(allocator);
+        app.deinit();
         allocator.destroy(app);
     }
 
