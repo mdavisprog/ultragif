@@ -949,16 +949,10 @@ pub const Format = struct {
         return .{ .data = try frames.toOwnedSlice(allocator) };
     }
 
-    fn getBackgoundColor(self: Format, color_table: []const u8, transparent_index: ?u8) ?[4]u8 {
+    fn getBackgoundColor(self: Format, color_table: []const u8) ?[4]u8 {
         const index = self.logical_screen_descriptor.background_color_index;
         if (index == 0) {
             return null;
-        }
-
-        if (transparent_index) |t_index| {
-            if (t_index == index) {
-                return .{ 0, 0, 0, 0 };
-            }
         }
 
         return .{
@@ -979,9 +973,7 @@ pub const Format = struct {
         const indices = try image_desc.decode(allocator);
         defer allocator.free(indices);
 
-        const color_table = if (image_desc.local_color_table) |table|
-            table
-        else
+        const color_table = image_desc.local_color_table orelse
             self.logical_screen_descriptor.global_color_table.?;
 
         const dst_min_x: u32 = @intCast(image_desc.image_left_position);
@@ -1020,12 +1012,26 @@ pub const Format = struct {
     ) void {
         const color_table = image_desc.local_color_table orelse
             self.logical_screen_descriptor.global_color_table.?;
-        const color = self.getBackgoundColor(color_table, transparent_index) orelse return;
 
-        // The 'restore_to_background' disposal method mentions only painting over the area
-        // the current image encompasses, but this has shown to not look right with some GIFs.
-        // Clearing the full canvas for now.
-        canvas.fill(.fromArray(color));
+        // After some research, it seems the 'restore_to_background' disposal method is not properly
+        // handled by all major web browsers. The method they use is to clear the affected background
+        // to be transparent, instead of the background color. For this implementation, if a
+        // transparent color is specified, then just clear the background. If not, then use the
+        // defined background color.
+        const color = if (transparent_index == null)
+            self.getBackgoundColor(color_table) orelse .{ 0, 0, 0, 0 }
+        else
+            .{ 0, 0, 0, 0 };
+
+        const min_x = image_desc.image_left_position;
+        const max_x = min_x + image_desc.image_width;
+        const min_y = image_desc.image_top_position;
+        const max_y = min_y + image_desc.image_height;
+        for (min_y..max_y) |y| {
+            for (min_x..max_x) |x| {
+                canvas.put(.fromArray(color), @intCast(x), @intCast(y));
+            }
+        }
     }
 };
 
