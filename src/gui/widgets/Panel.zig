@@ -5,8 +5,11 @@ const controls = @import("../controls/root.zig");
 const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
+const TextureCache = @import("../../TextureCache.zig");
 const Theme = @import("../Theme.zig");
 const units = @import("../../units.zig");
+
+const Texture = TextureCache.Texture;
 
 pub const Category = enum {
     animations,
@@ -66,36 +69,6 @@ pub fn bounds(_: Self) raylib.Rectangle {
     );
 }
 
-fn drawInfo(container: *const Container) void {
-    const file_name = if (container.app.loaded_gif) |loaded_gif|
-        std.fs.path.basename(loaded_gif.file_path)
-    else
-        "Drop file";
-
-    drawTitle(container._state, file_name);
-
-    const disabled = container.app.loaded_gif == null;
-    const show_texture_text = if (container.app.show_sprite_sheet)
-        "Show Animation"
-    else
-        "Show Sprites";
-    if (controls.button.label(
-        container._state,
-        .fromLabel("ShowSpriteSheet_Button"),
-        .init(show_texture_text),
-        .{ .disabled = disabled },
-    ) == .clicked) {
-        container.app.show_sprite_sheet = !container.app.show_sprite_sheet;
-    }
-
-    const summary = container._summary orelse return;
-    controls.text.label(container._state, summary.version, .{});
-    controls.text.label(container._state, summary.dimensions, .{});
-    controls.text.label(container._state, summary.frame_count, .{});
-    controls.text.label(container._state, summary.compressed_size, .{});
-    controls.text.label(container._state, summary.uncompressed_size, .{});
-}
-
 fn drawTitle(state: State, text: []const u8) void {
     clay.openElement();
     clay.configureOpenElement(.{
@@ -118,16 +91,13 @@ fn drawTexturesInfo(container: *Container) void {
     const allocator = container._state.getAllocator();
 
     var bytes: usize = 0;
-    var count: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
     while (textures.next()) |texture| {
         bytes += texture.*.sheet.memorySize();
-        count += 1;
     }
 
     drawTitle(container._state, "Textures");
 
-    const texture_count = formatString(allocator, "Count: {}", .{count});
     const memory: units.Memory = .fromBytes(bytes);
     const memory_text = formatString(
         allocator,
@@ -135,8 +105,24 @@ fn drawTexturesInfo(container: *Container) void {
         .{ memory.amount, memory.symbolString() },
     );
 
-    controls.text.label(container._state, texture_count, .{});
-    controls.text.label(container._state, memory_text, .{});
+    const config: controls.text.Config = .{ .font_size = 18 };
+    controls.text.label(container._state, memory_text, config);
+
+    const current_texture = container.app.canvas_scene.texture;
+
+    controls.list.begin();
+    textures = container.app.texture_cache.textures.valueIterator();
+    while (textures.next()) |texture| {
+        const selected = if (current_texture) |t| t == texture.* else false;
+        const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
+        controls.text.label(container._state, formatString(allocator, "{s}", .{texture.*.name()}), config);
+        controls.list.endItem();
+
+        if (clicked) {
+            container.app.canvas_scene.texture = texture.*;
+        }
+    }
+    controls.list.end();
 }
 
 fn drawAnimations(container: *Container) void {
@@ -210,6 +196,11 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
 
     if (result == .clicked) {
         self.category = category;
+
+        container.app.canvas_scene.draw_type = switch (category) {
+            .animations => .animations,
+            .texture => .texture,
+        };
     }
 
     clay.closeElement();

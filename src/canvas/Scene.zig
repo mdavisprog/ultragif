@@ -8,6 +8,18 @@ const TextureCache = @import("../TextureCache.zig");
 
 const Texture = TextureCache.Texture;
 
+/// What should be rendered by the scene.
+pub const DrawType = enum {
+    animations,
+    texture,
+};
+
+const Action = enum {
+    none,
+    pan_camera,
+    move_object,
+};
+
 /// Holds all objects contained within the Canvas.
 const Self = @This();
 
@@ -17,6 +29,8 @@ selected: ?*canvas.Object = null,
 hovered: ?*canvas.Object = null,
 locked_mouse_pos: raylib.Vector2 = .zero,
 action: Action = .none,
+texture: ?*Texture = null,
+draw_type: DrawType = .animations,
 
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     for (self.objects.items) |object| {
@@ -138,6 +152,17 @@ pub fn draw(self: Self) void {
 
     raylib.clearBackground(.darkgray);
 
+    switch (self.draw_type) {
+        .animations => {
+            self.drawAnimations();
+        },
+        .texture => {
+            self.drawTexture();
+        },
+    }
+}
+
+fn drawAnimations(self: Self) void {
     for (self.objects.items) |object| {
         object.draw();
     }
@@ -151,8 +176,7 @@ pub fn draw(self: Self) void {
     }
 }
 
-const Action = enum {
-    none,
-    pan_camera,
-    move_object,
-};
+fn drawTexture(self: Self) void {
+    const texture = self.texture orelse return;
+    raylib.drawTextureV(texture.sheet.texture, .zero, .white);
+}
