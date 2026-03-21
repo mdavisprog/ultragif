@@ -96,12 +96,6 @@ pub fn draw(self: *Self) void {
     self.gui_container.draw();
 }
 
-pub fn focusGIF(self: *Self, bounds: raylib.Rectangle) void {
-    const loaded_gif = self.loaded_gif orelse return;
-    const frame_size = loaded_gif.sprite_sheet.frame_size;
-    self.canvas_scene.camera.focusWithin(bounds, frame_size);
-}
-
 pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !void {
     self.unloadGIF(allocator);
 

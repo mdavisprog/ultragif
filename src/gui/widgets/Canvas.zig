@@ -35,6 +35,7 @@ pub fn bounds(_: Self) raylib.Rectangle {
 }
 
 pub fn draw(self: Self, container: *Container, width: f32) void {
+    _ = self;
     const state = container._state;
 
     clay.openElement();
@@ -94,7 +95,7 @@ pub fn draw(self: Self, container: *Container, width: f32) void {
         clay.closeElement();
 
         if (result == .clicked) {
-            container.app.focusGIF(self.bounds());
+            container.app.canvas_scene.camera.reset();
         }
 
         controls.button.end();
