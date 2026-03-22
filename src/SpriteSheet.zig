@@ -91,3 +91,13 @@ pub fn memorySize(self: Self) usize {
     const height: usize = @intCast(self.texture.height);
     return width * height * 4;
 }
+
+pub fn totalTime(self: Self) f32 {
+    var result: f32 = 0.0;
+
+    for (self.frames) |frame| {
+        result += frame.delay;
+    }
+
+    return result;
+}

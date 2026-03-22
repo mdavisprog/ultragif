@@ -20,6 +20,13 @@ const Action = enum {
     move_object,
 };
 
+/// Animation times will be synced based on what texture they use.
+const Timeline = struct {
+    objects: std.ArrayListUnmanaged(*canvas.Object) = .empty,
+    time: f32 = 0.0,
+    max: f32 = 0.0,
+};
+
 /// Holds all objects contained within the Canvas.
 const Self = @This();
 
@@ -31,6 +38,7 @@ locked_mouse_pos: raylib.Vector2 = .zero,
 action: Action = .none,
 texture: ?*Texture = null,
 draw_type: DrawType = .animations,
+timelines: std.AutoHashMapUnmanaged(*Texture, Timeline) = .empty,
 
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     for (self.objects.items) |object| {
@@ -38,6 +46,12 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         allocator.destroy(object);
     }
     self.objects.deinit(allocator);
+
+    var timelines = self.timelines.valueIterator();
+    while (timelines.next()) |timeline| {
+        timeline.objects.deinit(allocator);
+    }
+    self.timelines.deinit(allocator);
 }
 
 pub fn addShape(
@@ -61,7 +75,18 @@ pub fn addAnimation(
     const animation = try allocator.create(canvas.Animation);
     animation.* = .init(texture);
 
-    return try self.addObject(allocator, animation);
+    const result = try self.addObject(allocator, animation);
+
+    if (self.timelines.getPtr(animation.texture)) |timeline| {
+        try timeline.objects.append(allocator, result);
+    } else {
+        try self.timelines.put(allocator, animation.texture, .{
+            .max = animation.texture.sheet.totalTime(),
+        });
+        try self.timelines.getPtr(animation.texture).?.objects.append(allocator, result);
+    }
+
+    return result;
 }
 
 pub fn addObject(self: *Self, allocator: std.mem.Allocator, object: anytype) !*canvas.Object {
@@ -144,6 +169,8 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
         },
         .none => {},
     }
+
+    self.updateTimelines(delta_time);
 }
 
 pub fn draw(self: Self) void {
@@ -164,7 +191,17 @@ pub fn draw(self: Self) void {
 
 fn drawAnimations(self: Self) void {
     for (self.objects.items) |object| {
-        object.draw();
+        if (!self.isTimelineObject(object)) {
+            object.draw();
+        }
+    }
+
+    var timelines = self.timelines.valueIterator();
+    while (timelines.next()) |timeline| {
+        for (timeline.objects.items) |object| {
+            const animation = object.as(canvas.Animation);
+            animation.drawFrameTime(object.position, timeline.time);
+        }
     }
 
     if (self.hovered) |hovered| {
@@ -179,4 +216,28 @@ fn drawAnimations(self: Self) void {
 fn drawTexture(self: Self) void {
     const texture = self.texture orelse return;
     raylib.drawTextureV(texture.sheet.texture, .zero, .white);
+}
+
+fn updateTimelines(self: *Self, delta_time: f32) void {
+    var timelines = self.timelines.valueIterator();
+    while (timelines.next()) |timeline| {
+        timeline.time += delta_time;
+
+        if (timeline.time > timeline.max) {
+            timeline.time = 0.0;
+        }
+    }
+}
+
+fn isTimelineObject(self: Self, object: *const canvas.Object) bool {
+    var timelines = self.timelines.valueIterator();
+    while (timelines.next()) |timeline| {
+        for (timeline.objects.items) |item| {
+            if (item == object) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }

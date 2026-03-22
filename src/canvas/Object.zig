@@ -59,6 +59,10 @@ pub fn bounds(self: Self) raylib.Rectangle {
     return .init(self.position.x, self.position.y, size.x, size.y);
 }
 
+pub fn isA(self: Self, comptime T: type) bool {
+    return self.type_id == hash.hashStruct(T);
+}
+
 pub fn as(self: Self, comptime T: type) *T {
     return @ptrCast(@alignCast(self.ptr));
 }
