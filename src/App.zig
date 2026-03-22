@@ -19,7 +19,6 @@ pub const LoadedGIF = struct {
 const Self = @This();
 
 loaded_gif: ?LoadedGIF = null,
-show_sprite_sheet: bool = false,
 canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
