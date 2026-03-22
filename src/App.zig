@@ -69,7 +69,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
         const files = raylib.loadDroppedFiles();
         defer raylib.unloadDroppedFiles(files);
 
-        var position: raylib.Vector2 = .zero;
+        var position: raylib.Vector2 = self.canvas_scene.camera.mousePosition();
         const paths = files.getPaths();
         for (paths) |path| {
             const _path = std.mem.span(path);
