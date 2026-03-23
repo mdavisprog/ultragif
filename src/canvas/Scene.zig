@@ -113,14 +113,16 @@ pub fn getObjects(self: Self, allocator: std.mem.Allocator, comptime T: type) ![
 
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
 pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void {
-    self.hovered = null;
-    const point = self.camera.mousePositionFrom(mouse_state.position);
-    for (self.objects.items) |object| {
-        object.update(delta_time);
+    if (self.action == .none) {
+        self.hovered = null;
+        const point = self.camera.mousePositionFrom(mouse_state.position);
+        for (self.objects.items) |object| {
+            object.update(delta_time);
 
-        const bounds = object.bounds();
-        if (bounds.contains(point)) {
-            self.hovered = object;
+            const bounds = object.bounds();
+            if (bounds.contains(point)) {
+                self.hovered = object;
+            }
         }
     }
 
