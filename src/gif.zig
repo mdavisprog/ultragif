@@ -66,9 +66,8 @@ pub const LogicalScreenDescriptor = struct {
         /// fewer available colors, in choosing the best subset of colors; the decoder may use an
         /// initial segment of the table to render the graphic.
         ///
-        /// 0 -   No Global Color Table follows, the Background Color Index field is meaningless.
-        /// 1 -   A Global Color Table will immediately follow, the Background Color Index field is
-        ///       meaningful.
+        /// 0 -   Not ordered.
+        /// 1 -   Ordered by decreasing importance, most important color first.
         sort_flag: bool,
 
         /// Number of bits per primary color available to the original image, minus 1. This value
@@ -639,6 +638,8 @@ pub const PlainTextExtension = struct {
 /// The Application Extension contains application-specific information; it conforms with the
 /// extension block syntax, as described below, and its block label is 0xFF.
 pub const ApplicationExtension = struct {
+    const block_size_constant: u8 = 11;
+
     /// Number of bytes in this extension block, following the Block Size field, up to but not
     /// including the beginning of the Application Data. This field contains the fixed value 11.
     block_size: u8,
@@ -659,7 +660,7 @@ pub const ApplicationExtension = struct {
         var result: ApplicationExtension = undefined;
 
         result.block_size = try reader.takeByte();
-        std.debug.assert(result.block_size == 11);
+        std.debug.assert(result.block_size == block_size_constant);
 
         @memcpy(
             &result.application_identifier,
@@ -1068,7 +1069,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
 
     sw: switch (label) {
         .extension => {
-            var extension = try getNextExtension(&reader.interface) orelse break :sw;
+            const extension = try getNextExtension(&reader.interface) orelse break :sw;
             switch (extension) {
                 .application => {
                     const application_extension: ApplicationExtension = try .init(
@@ -1112,27 +1113,23 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                         },
                     });
                 },
-                .image_descriptor => {
-                    const image_descriptor: ImageDescriptor = try .init(
-                        &reader.interface,
-                        allocator,
-                    );
+            }
 
-                    try blocks.append(allocator, .{
-                        .graphic_rendering = .{
-                            .image_descriptor = image_descriptor,
-                        },
-                    });
+            // If the next byte is not an extension type, resume processing.
+            label = try getNextLabel(&reader.interface) orelse break :sw;
+            continue :sw label;
+        },
+        .image_descriptor => {
+            const image_descriptor: ImageDescriptor = try .init(
+                &reader.interface,
+                allocator,
+            );
+
+            try blocks.append(allocator, .{
+                .graphic_rendering = .{
+                    .image_descriptor = image_descriptor,
                 },
-            }
-
-            // Sometimes, the next extension block follows the current one without an explicit
-            // 'extension' label. Peek here to determine if the next byte is an extension type
-            // and process it as if an extension label was found.
-            if (try peekNextExtension(&reader.interface)) |ext| {
-                extension = ext;
-                continue :sw Label.extension;
-            }
+            });
 
             // If the next byte is not an extension type, resume processing.
             label = try getNextLabel(&reader.interface) orelse break :sw;
@@ -1164,14 +1161,12 @@ fn getNextExtension(reader: *std.Io.Reader) !?ExtensionType {
     };
 }
 
-fn peekNextExtension(reader: *std.Io.Reader) !?ExtensionType {
-    const byte = try reader.peekByte();
-    return ExtensionType.init(byte);
-}
-
 const Label = enum(u8) {
     /// Extension - A protocol block labeled by the Extension Introducer 0x21.
     extension = 0x21,
+
+    /// The Image Descriptor contains the parameters necessary to process a table based image.
+    image_descriptor = 0x2C,
 
     /// This block is a single-field block indicating the end of the GIF Data Stream.  It contains
     /// the fixed value 0x3B.
@@ -1183,7 +1178,6 @@ const Label = enum(u8) {
 };
 
 const ExtensionType = enum(u8) {
-    image_descriptor = 0x2C,
     graphic_control = 0xF9,
     comment = 0xFE,
     plain_text = 0x01,
