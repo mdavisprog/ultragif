@@ -124,6 +124,26 @@ pub const Image = extern struct {
             .format = @intFromEnum(format),
         };
     }
+
+    pub fn getFormat(self: Image) PixelFormat {
+        return @enumFromInt(self.format);
+    }
+
+    pub fn getData(self: Image) []u8 {
+        const format = self.getFormat();
+        const bpp: usize = switch (format) {
+            .uncompressed_r8g8b8a8 => 4,
+            else => {
+                std.debug.panic("Unhandled pixel format: {s}", .{@tagName(format)});
+            },
+        };
+
+        const data: [*c]u8 = @ptrCast(@alignCast(self.data));
+        const width: usize = @intCast(self.width);
+        const height: usize = @intCast(self.height);
+        const len = width * height * bpp;
+        return data[0..len];
+    }
 };
 
 pub const Texture = extern struct {
@@ -705,6 +725,18 @@ pub fn drawRectangleRounded(rec: Rectangle, roundness: f32, segments: i32, color
     DrawRectangleRounded(rec, roundness, @intCast(segments), color);
 }
 
+pub fn loadImageFromTexture(texture: Texture2D) Image {
+    return LoadImageFromTexture(texture);
+}
+
+pub fn isImageValid(image: Image) bool {
+    return IsImageValid(image);
+}
+
+pub fn unloadImage(image: Image) void {
+    UnloadImage(image);
+}
+
 pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
@@ -905,6 +937,10 @@ extern fn DrawRectangle(pos_x: c_int, pos_y: c_int, width: c_int, height: c_int,
 extern fn DrawRectangleV(position: Vector2, size: Vector2, color: Color) void;
 extern fn DrawRectangleLinesEx(rec: Rectangle, line_thick: f32, color: Color) void;
 extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, color: Color) void;
+
+extern fn LoadImageFromTexture(texture: Texture2D) Image;
+extern fn IsImageValid(image: Image) bool;
+extern fn UnloadImage(image: Image) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn LoadRenderTexture(width: c_int, height: c_int) RenderTexture2D;

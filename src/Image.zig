@@ -5,6 +5,15 @@ const std = @import("std");
 pub const Format = enum {
     RGBA,
 
+    pub fn fromRaylib(format: raylib.PixelFormat) Format {
+        return switch (format) {
+            .uncompressed_r8g8b8a8 => .RGBA,
+            else => {
+                std.debug.panic("Unsupported pixel format {s}", .{@tagName(format)});
+            },
+        };
+    }
+
     pub fn bits(self: Format) u8 {
         return switch (self) {
             .RGBA => 32,
@@ -13,6 +22,10 @@ pub const Format = enum {
 
     pub fn bytes(self: Format) u8 {
         return self.bits() / 8;
+    }
+
+    fn size(self: Format, width: usize, height: usize) usize {
+        return width * height * @as(usize, @intCast(self.bytes()));
     }
 };
 
@@ -31,7 +44,7 @@ width: u32,
 height: u32,
 
 pub fn init(allocator: std.mem.Allocator, width: u32, height: u32, format: Format) !Self {
-    const len: usize = @intCast(width * height * @as(u32, @intCast(format.bytes())));
+    const len: usize = format.size(@intCast(width), @intCast(height));
     const data = try allocator.alloc(u8, len);
     @memset(data, 0);
 
@@ -49,6 +62,20 @@ pub fn initWithData(data: []u8, width: u32, height: u32, format: Format) Self {
         .format = format,
         .width = width,
         .height = height,
+    };
+}
+
+pub fn fromTexture(allocator: std.mem.Allocator, texture: raylib.Texture2D) !Self {
+    const image = raylib.loadImageFromTexture(texture);
+    defer raylib.unloadImage(image);
+
+    const data = try allocator.dupe(u8, image.getData());
+
+    return .{
+        .data = data,
+        .width = @intCast(image.width),
+        .height = @intCast(image.height),
+        .format = .fromRaylib(image.getFormat()),
     };
 }
 
@@ -86,6 +113,44 @@ pub fn fillRegion(self: *Self, color: raylib.Color, x: u32, y: u32, width: u32, 
             self.data[idx + 3] = color.a;
         }
     }
+}
+
+pub fn getRegion(
+    self: Self,
+    allocator: std.mem.Allocator,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+) ![]u8 {
+    var result: std.ArrayListUnmanaged(u8) = try .initCapacity(
+        allocator,
+        self.format.size(@intCast(width), @intCast(height)),
+    );
+
+    for (y..(y + height)) |_y| {
+        for (x..(x + width)) |_x| {
+            const idx = self.index(@intCast(_x), @intCast(_y));
+            try result.appendSlice(allocator, &.{
+                self.data[idx + 0],
+                self.data[idx + 1],
+                self.data[idx + 2],
+                self.data[idx + 3],
+            });
+        }
+    }
+
+    return try result.toOwnedSlice(allocator);
+}
+
+pub fn getRegionRect(self: Self, allocator: std.mem.Allocator, rect: raylib.Rectangle) ![]u8 {
+    return self.getRegion(
+        allocator,
+        @intFromFloat(rect.x),
+        @intFromFloat(rect.y),
+        @intFromFloat(rect.width),
+        @intFromFloat(rect.height),
+    );
 }
 
 pub fn copy(self: *Self, image: Self, x: u32, y: u32) !void {

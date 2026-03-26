@@ -101,3 +101,7 @@ pub fn totalTime(self: Self) f32 {
 
     return result;
 }
+
+pub fn toImage(self: Self, allocator: std.mem.Allocator) !Image {
+    return try .fromTexture(allocator, self.texture);
+}
