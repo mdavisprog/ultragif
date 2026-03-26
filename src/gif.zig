@@ -23,16 +23,6 @@ pub const Header = struct {
     /// warning the user that the data may be incomplete.
     version: [3]u8,
 
-    pub fn init(reader: *std.Io.Reader) !Header {
-        const signature = try reader.take(3);
-        const version = try reader.take(3);
-
-        var result: Header = undefined;
-        @memcpy(&result.signature, signature);
-        @memcpy(&result.version, version);
-        return result;
-    }
-
     pub fn isValid(self: Header) bool {
         if (!std.mem.eql(u8, &self.signature, "GIF")) {
             return false;
@@ -43,6 +33,28 @@ pub const Header = struct {
         }
 
         return true;
+    }
+
+    fn initDefault() Header {
+        var result: Header = undefined;
+        @memcpy(&result.signature, "GIF");
+        @memcpy(&result.version, "89a");
+        return result;
+    }
+
+    fn read(reader: *std.Io.Reader) !Header {
+        const signature = try reader.take(3);
+        const version = try reader.take(3);
+
+        var result: Header = undefined;
+        @memcpy(&result.signature, signature);
+        @memcpy(&result.version, version);
+        return result;
+    }
+
+    fn write(self: Header, writer: *std.Io.Writer) !void {
+        try writer.writeAll(&self.signature);
+        try writer.writeAll(&self.version);
     }
 };
 
@@ -131,7 +143,7 @@ pub const LogicalScreenDescriptor = struct {
     /// This block is OPTIONAL; at most one Global Color Table may be present per Data Stream.
     global_color_table: ?[]const u8 = null,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !LogicalScreenDescriptor {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !LogicalScreenDescriptor {
         var result: LogicalScreenDescriptor = undefined;
 
         result.width = try reader.takeInt(u16, .little);
@@ -151,11 +163,24 @@ pub const LogicalScreenDescriptor = struct {
         return result;
     }
 
-    pub fn deinit(self: LogicalScreenDescriptor, allocator: std.mem.Allocator) void {
+    fn write(self: LogicalScreenDescriptor, writer: *std.Io.Writer) !void {
+        try writer.writeInt(u16, self.width, .little);
+        try writer.writeInt(u16, self.height, .little);
+        try writer.writeStruct(self.packed_fields, .little);
+        try writer.writeByte(self.background_color_index);
+        try writer.writeByte(self.pixel_aspect_ratio);
+
+        if (self.global_color_table) |table| {
+            try writer.writeAll(table);
+        }
+    }
+
+    fn deinit(self: LogicalScreenDescriptor, allocator: std.mem.Allocator) void {
         if (self.global_color_table) |table| {
             allocator.free(table);
         }
     }
+
 };
 
 /// Data Sub-blocks are units containing data. They do not have a label, these blocks are processed
@@ -171,7 +196,7 @@ pub const DataSubBlock = struct {
     /// field.
     data_values: ?[]const u8,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !?DataSubBlock {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !?DataSubBlock {
         var result: DataSubBlock = undefined;
 
         result.block_size = try reader.takeByte();
@@ -184,7 +209,20 @@ pub const DataSubBlock = struct {
         return result;
     }
 
-    pub fn deinit(self: DataSubBlock, allocator: std.mem.Allocator) void {
+    fn write(self: DataSubBlock, writer: *std.Io.Writer) !void {
+        const data_values = self.data_values orelse return;
+        try writer.writeByte(self.block_size);
+        try writer.writeAll(data_values);
+    }
+
+    fn initData(data: []const u8) DataSubBlock {
+        return .{
+            .block_size = @intCast(data.len),
+            .data_values = data,
+        };
+    }
+
+    fn deinit(self: DataSubBlock, allocator: std.mem.Allocator) void {
         if (self.data_values) |data_values| {
             allocator.free(data_values);
         }
@@ -204,12 +242,12 @@ pub const ImageData = struct {
     /// Compressed data blocks that represents this image.
     image_data: []const DataSubBlock,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageData {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageData {
         var result: ImageData = undefined;
         result.lzw_minimum_code_size = try reader.takeByte();
 
         var image_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
-        while (try DataSubBlock.init(reader, allocator)) |data| {
+        while (try DataSubBlock.read(reader, allocator)) |data| {
             try image_data.append(allocator, data);
         }
         result.image_data = try image_data.toOwnedSlice(allocator);
@@ -217,14 +255,25 @@ pub const ImageData = struct {
         return result;
     }
 
-    pub fn deinit(self: ImageData, allocator: std.mem.Allocator) void {
+    fn write(self: ImageData, writer: *std.Io.Writer) !void {
+        try writer.writeByte(self.lzw_minimum_code_size);
+
+        for (self.image_data) |image_data| {
+            try image_data.write(writer);
+        }
+
+        // Terminating byte
+        try writer.writeByte(0);
+    }
+
+    fn deinit(self: ImageData, allocator: std.mem.Allocator) void {
         for (self.image_data) |block| {
             block.deinit(allocator);
         }
         allocator.free(self.image_data);
     }
 
-    pub fn format(self: ImageData, writer: *std.Io.Writer) !void {
+    fn format(self: ImageData, writer: *std.Io.Writer) !void {
         try writer.print("\nlzw_minimum_code_size: {}\n", .{self.lzw_minimum_code_size});
 
         var total_size: usize = 0;
@@ -237,7 +286,7 @@ pub const ImageData = struct {
         });
     }
 
-    pub fn totalSize(self: ImageData) usize {
+    fn totalSize(self: ImageData) usize {
         var result: usize = 0;
 
         for (self.image_data) |data| {
@@ -247,7 +296,7 @@ pub const ImageData = struct {
         return result;
     }
 
-    pub fn decode(self: ImageData, allocator: std.mem.Allocator, writer: *std.Io.Writer) !void {
+    fn decode(self: ImageData, allocator: std.mem.Allocator, writer: *std.Io.Writer) !void {
         var decoder: lzw.Decoder(.little) = try .init(allocator, self.lzw_minimum_code_size, 0);
         defer decoder.deinit();
 
@@ -344,7 +393,7 @@ pub const ImageDescriptor = struct {
     /// Raw compressed image data.
     image_data: ImageData,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageDescriptor {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ImageDescriptor {
         var result: ImageDescriptor = undefined;
 
         result.image_left_position = try reader.takeInt(u16, .little);
@@ -361,12 +410,22 @@ pub const ImageDescriptor = struct {
             result.local_color_table = null;
         }
 
-        result.image_data = try .init(reader, allocator);
+        result.image_data = try .read(reader, allocator);
 
         return result;
     }
 
-    pub fn deinit(self: ImageDescriptor, allocator: std.mem.Allocator) void {
+    fn write(self: ImageDescriptor, writer: *std.Io.Writer) !void {
+        try writer.writeByte(@intFromEnum(Label.image_descriptor));
+        try writer.writeInt(u16, self.image_left_position, .little);
+        try writer.writeInt(u16, self.image_top_position, .little);
+        try writer.writeInt(u16, self.image_width, .little);
+        try writer.writeInt(u16, self.image_height, .little);
+        try writer.writeStruct(self.packed_fields, .little);
+        try self.image_data.write(writer);
+    }
+
+    fn deinit(self: ImageDescriptor, allocator: std.mem.Allocator) void {
         if (self.local_color_table) |table| {
             allocator.free(table);
         }
@@ -374,7 +433,7 @@ pub const ImageDescriptor = struct {
         self.image_data.deinit(allocator);
     }
 
-    pub fn decode(self: ImageDescriptor, allocator: std.mem.Allocator) ![]const u8 {
+    fn decode(self: ImageDescriptor, allocator: std.mem.Allocator) ![]const u8 {
         const width: usize = @intCast(self.image_width);
         const height: usize = @intCast(self.image_height);
         const size: usize = width * height;
@@ -396,7 +455,7 @@ pub const ImageDescriptor = struct {
         try writer.print("interlace_flag: {}\n", .{self.packed_fields.interlace_flag});
         try writer.print("local_color_table_flag: {}\n", .{self.packed_fields.local_color_table_flag});
         const len = if (self.local_color_table) |table| table.len else 0;
-        try writer.print("local_color_table: {} bytes", .{len});
+        try writer.print("local_color_table: {} bytes\n", .{len});
         try writer.print("image_data: {f}\n", .{self.image_data});
     }
 };
@@ -451,6 +510,9 @@ pub const GraphicControlExtension = struct {
         restore_to_previous,
     };
 
+    /// Fixed value representing the size of this block
+    const block_size_constant = 4;
+
     /// Number of bytes in the block, after the Block Size field and up to but not including the
     /// Block Terminator.  This field contains the fixed value 4.
     block_size: u8,
@@ -469,7 +531,7 @@ pub const GraphicControlExtension = struct {
     /// present if and only if the Transparency Flag is set to 1.
     transparency_color_index: u8,
 
-    pub fn init(reader: *std.Io.Reader) !GraphicControlExtension {
+    fn read(reader: *std.Io.Reader) !GraphicControlExtension {
         var result: GraphicControlExtension = undefined;
 
         result.block_size = try reader.takeByte();
@@ -485,7 +547,19 @@ pub const GraphicControlExtension = struct {
         return result;
     }
 
-    pub fn getTransparentIndex(self: GraphicControlExtension) ?u8 {
+    fn write(self: GraphicControlExtension, writer: *std.Io.Writer) !void {
+        try writer.writeByte(@intFromEnum(Label.extension));
+        try writer.writeByte(@intFromEnum(ExtensionType.graphic_control));
+        try writer.writeByte(block_size_constant);
+        try writer.writeStruct(self.packed_fields, .little);
+        try writer.writeInt(u16, self.delay_time, .little);
+        try writer.writeByte(self.transparency_color_index);
+
+        // Terminator
+        try writer.writeByte(0);
+    }
+
+    fn getTransparentIndex(self: GraphicControlExtension) ?u8 {
         if (self.packed_fields.transparency_color_flag) {
             return self.transparency_color_index;
         }
@@ -493,7 +567,7 @@ pub const GraphicControlExtension = struct {
         return null;
     }
 
-    pub fn getDisposalMethod(self: GraphicControlExtension) DisposalMethod {
+    fn getDisposalMethod(self: GraphicControlExtension) DisposalMethod {
         return switch (self.packed_fields.disposal_method) {
             1 => .leave_in_place,
             2 => .restore_to_background,
@@ -526,11 +600,11 @@ pub const CommentExtension = struct {
     /// set. This block should not be used to store control information for custom processing.
     comment_data: []const DataSubBlock,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !CommentExtension {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !CommentExtension {
         std.debug.print("Found CommandExtension\n", .{});
 
         var data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
-        while (try DataSubBlock.init(reader, allocator)) |block| {
+        while (try DataSubBlock.read(reader, allocator)) |block| {
             if (block.data_values) |comment| {
                 std.debug.print("   comment: {s}\n", .{comment});
             }
@@ -542,7 +616,7 @@ pub const CommentExtension = struct {
         };
     }
 
-    pub fn deinit(self: CommentExtension, allocator: std.mem.Allocator) void {
+    fn deinit(self: CommentExtension, allocator: std.mem.Allocator) void {
         for (self.comment_data) |data| {
             data.deinit(allocator);
         }
@@ -601,7 +675,7 @@ pub const PlainTextExtension = struct {
     /// in a byte preceding the data.  The end of the sequence is marked by the Block Terminator.
     plain_text_data: []const DataSubBlock,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !PlainTextExtension {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !PlainTextExtension {
         var result: PlainTextExtension = undefined;
 
         result.block_size = try reader.takeByte();
@@ -619,7 +693,7 @@ pub const PlainTextExtension = struct {
         result.text_background_color_index = try reader.takeByte();
 
         var plain_text_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
-        while (try DataSubBlock.init(reader, allocator)) |block| {
+        while (try DataSubBlock.read(reader, allocator)) |block| {
             try plain_text_data.append(allocator, block);
         }
         result.plain_text_data = try plain_text_data.toOwnedSlice(allocator);
@@ -627,7 +701,7 @@ pub const PlainTextExtension = struct {
         return result;
     }
 
-    pub fn deinit(self: PlainTextExtension, allocator: std.mem.Allocator) void {
+    fn deinit(self: PlainTextExtension, allocator: std.mem.Allocator) void {
         for (self.plain_text_data) |block| {
             block.deinit(allocator);
         }
@@ -656,7 +730,7 @@ pub const ApplicationExtension = struct {
     /// May contain 0 or more data blocks.
     application_data: ?[]const DataSubBlock,
 
-    pub fn init(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ApplicationExtension {
+    fn read(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ApplicationExtension {
         var result: ApplicationExtension = undefined;
 
         result.block_size = try reader.takeByte();
@@ -673,7 +747,7 @@ pub const ApplicationExtension = struct {
         );
 
         var application_data: std.ArrayListUnmanaged(DataSubBlock) = .empty;
-        while (try DataSubBlock.init(reader, allocator)) |data| {
+        while (try DataSubBlock.read(reader, allocator)) |data| {
             try application_data.append(allocator, data);
         }
 
@@ -684,7 +758,23 @@ pub const ApplicationExtension = struct {
         return result;
     }
 
-    pub fn deinit(self: ApplicationExtension, allocator: std.mem.Allocator) void {
+    fn write(self: ApplicationExtension, writer: *std.Io.Writer) !void {
+        try writer.writeByte(@intFromEnum(Label.extension));
+        try writer.writeByte(@intFromEnum(ExtensionType.application));
+        try writer.writeByte(self.block_size);
+        try writer.writeAll(&self.application_identifier);
+        try writer.writeAll(&self.application_authentication_code);
+
+        if (self.application_data) |application_data| {
+            for (application_data) |data| {
+                try data.write(writer);
+            }
+        }
+
+        try writer.writeByte(0);
+    }
+
+    fn deinit(self: ApplicationExtension, allocator: std.mem.Allocator) void {
         if (self.application_data) |application_data| {
             for (application_data) |data| {
                 data.deinit(allocator);
@@ -707,6 +797,25 @@ pub const ApplicationExtension = struct {
                 try writer.print("\nblock_size: {}", .{data.block_size});
             }
         }
+    }
+
+    fn netscape(allocator: std.mem.Allocator, loop_count: u16) !ApplicationExtension {
+        var result: ApplicationExtension = undefined;
+
+        result.block_size = block_size_constant;
+        @memcpy(&result.application_identifier, "NETSCAPE");
+        @memcpy(&result.application_authentication_code, "2.0");
+
+        const data = try allocator.alloc(u8, 3);
+        var writer: std.Io.Writer = .fixed(data);
+        try writer.writeByte(1);
+        try writer.writeInt(u16, loop_count, .little);
+
+        var application_data = try allocator.alloc(DataSubBlock, 1);
+        application_data[0] = .initData(data);
+        result.application_data = application_data;
+
+        return result;
     }
 };
 
@@ -1051,13 +1160,14 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
 
     var result: Format = undefined;
 
-    result.header = try .init(&reader.interface);
+    result.header = try .read(&reader.interface);
     if (!result.header.isValid()) {
         std.log.warn("Given file '{s}' is not a valid GIF.", .{path});
         return Error.InvalidHeader;
     }
 
-    result.logical_screen_descriptor = try .init(&reader.interface, allocator);
+    result.logical_screen_descriptor = try .read(&reader.interface, allocator);
+    errdefer result.logical_screen_descriptor.deinit(allocator);
 
     var blocks: std.ArrayListUnmanaged(Block) = .empty;
     defer blocks.deinit(allocator);
@@ -1072,7 +1182,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
             const extension = try getNextExtension(&reader.interface) orelse break :sw;
             switch (extension) {
                 .application => {
-                    const application_extension: ApplicationExtension = try .init(
+                    const application_extension: ApplicationExtension = try .read(
                         &reader.interface,
                         allocator,
                     );
@@ -1084,7 +1194,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                     });
                 },
                 .plain_text => {
-                    const plain_text_extension: PlainTextExtension = try .init(
+                    const plain_text_extension: PlainTextExtension = try .read(
                         &reader.interface,
                         allocator,
                     );
@@ -1096,7 +1206,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                     });
                 },
                 .comment => {
-                    const comment: CommentExtension = try .init(&reader.interface, allocator);
+                    const comment: CommentExtension = try .read(&reader.interface, allocator);
 
                     try blocks.append(allocator, .{
                         .special_purpose = .{
@@ -1105,7 +1215,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
                     });
                 },
                 .graphic_control => {
-                    const graphic_control: GraphicControlExtension = try .init(&reader.interface);
+                    const graphic_control: GraphicControlExtension = try .read(&reader.interface);
 
                     try blocks.append(allocator, .{
                         .control = .{
@@ -1120,7 +1230,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
             continue :sw label;
         },
         .image_descriptor => {
-            const image_descriptor: ImageDescriptor = try .init(
+            const image_descriptor: ImageDescriptor = try .read(
                 &reader.interface,
                 allocator,
             );
