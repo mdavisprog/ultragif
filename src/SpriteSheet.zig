@@ -22,7 +22,7 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
     var frames = try allocator.alloc(Frame, num_frames);
     errdefer allocator.free(frames);
 
-    const columns: u32 = 8;
+    const columns: u32 = @min(num_frames, 8);
     var rows: u32 = @as(u32, @intCast(num_frames)) / columns;
     // Take into account any left over frames that needs its own row.
     rows += if (@mod(num_frames, columns) == 0) 0 else 1;
@@ -67,6 +67,8 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
         @intCast(image.height),
         .uncompressed_r8g8b8a8,
     ));
+
+    raylib.setTextureFilter(texture, .point);
 
     return .{
         .texture = texture,
