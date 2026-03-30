@@ -111,6 +111,19 @@ pub fn getObjects(self: Self, allocator: std.mem.Allocator, comptime T: type) ![
     return try result.toOwnedSlice(allocator);
 }
 
+pub fn numObjects(self: Self, comptime T: type) usize {
+    var result: usize = 0;
+
+    const type_id = hash.hashStruct(T);
+    for (self.objects.items) |object| {
+        if (object.type_id == type_id) {
+            result += 1;
+        }
+    }
+
+    return result;
+}
+
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
 pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void {
     if (self.action == .none) {

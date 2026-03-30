@@ -197,6 +197,10 @@ pub fn index(self: Self, x: u32, y: u32) usize {
     return y * self.width * bpp + x * bpp;
 }
 
+pub fn length(self: Self) usize {
+    return self.format.size(@intCast(self.width), @intCast(self.height));
+}
+
 test "fill" {
     const allocator = std.testing.allocator;
 

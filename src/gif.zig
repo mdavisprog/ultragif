@@ -172,6 +172,13 @@ pub const LogicalScreenDescriptor = struct {
 
         if (self.global_color_table) |table| {
             try writer.writeAll(table);
+
+            const current = table.len / 3;
+            const expected = self.numColors();
+            var remaining = expected -| current;
+            while (remaining > 0) : (remaining -|= 1) {
+                try writer.writeAll(&.{0, 0, 0});
+            }
         }
     }
 
@@ -181,6 +188,10 @@ pub const LogicalScreenDescriptor = struct {
         }
     }
 
+    fn numColors(self: LogicalScreenDescriptor) usize {
+        const size = @as(usize, @intCast(self.packed_fields.global_color_table_size)) + 1;
+        return std.math.pow(usize, 2, size);
+    }
 };
 
 /// Data Sub-blocks are units containing data. They do not have a label, these blocks are processed
@@ -1150,6 +1161,148 @@ pub const Error = error{
     InvalidFormat,
 };
 
+pub const Writer = struct {
+    const ImageIndexed = struct {
+        descriptor: ImageDescriptor,
+        uncompressed_data: []const u8,
+        delay: f32,
+    };
+
+    logical_screen_desc: LogicalScreenDescriptor,
+    images: std.ArrayListUnmanaged(ImageIndexed) = .empty,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) !Writer {
+        return .{
+            .logical_screen_desc = std.mem.zeroes(LogicalScreenDescriptor),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Writer) void {
+        const allocator = self.allocator;
+
+        for (self.images.items) |image| {
+            image.descriptor.deinit(self.allocator);
+            self.allocator.free(image.uncompressed_data);
+        }
+        self.images.deinit(allocator);
+
+        self.logical_screen_desc.deinit(allocator);
+    }
+
+    /// The color table must contain a list of 24-bit colors in RGB format. The table can only have
+    /// a max of 255. This function will take ownership over the memory.
+    pub fn setGlobalColorTable(self: *Writer, table: []const u8) void {
+        // Ensure the data is aligned to 3 bytes per entry.
+        const remainder = @mod(table.len, 3);
+        std.debug.assert(remainder == 0);
+
+        const count = table.len / 3;
+        std.debug.assert(count <= 256);
+
+        self.logical_screen_desc.global_color_table = table;
+        self.logical_screen_desc.packed_fields.global_color_table_flag = true;
+        self.logical_screen_desc.packed_fields.global_color_table_size = colorTableSize(count);
+    }
+
+    /// Adds an image where the data must be an indexed image.
+    pub fn addImage(
+        self: *Writer,
+        left: u16,
+        top: u16,
+        width: u16,
+        height: u16,
+        data: []const u8,
+        delay: f32,
+    ) !void {
+        var descriptor: ImageDescriptor = std.mem.zeroes(ImageDescriptor);
+        descriptor.image_left_position = left;
+        descriptor.image_top_position = top;
+        descriptor.image_width = width;
+        descriptor.image_height = height;
+
+        try self.images.append(self.allocator, .{
+            .uncompressed_data = data,
+            .descriptor = descriptor,
+            .delay = delay,
+        });
+    }
+
+    pub fn save(self: *Writer, path: []const u8) !void {
+        const file = try std.fs.createFileAbsolute(path, .{});
+        defer file.close();
+
+        var buffer: [1024]u8 = undefined;
+        var writer = file.writer(&buffer);
+
+        try self.write(&writer.interface);
+    }
+
+    fn write(self: *Writer, writer: *std.Io.Writer) !void {
+        const allocator = self.allocator;
+
+        // Header
+        const header: Header = .initDefault();
+        try header.write(writer);
+
+        // Logical Screen Descriptor
+        try self.logical_screen_desc.write(writer);
+
+        // Application Extension using NETSCAPE for loop count.
+        // Only write this if multiple frames exist.
+        if (self.images.items.len > 1) {
+            const app_extension: ApplicationExtension = try .netscape(allocator, 0);
+            defer app_extension.deinit(allocator);
+            try app_extension.write(writer);
+        }
+
+        // Images
+        const table_size = self.logical_screen_desc.packed_fields.global_color_table_size;
+        var literal_width = @as(u4, @intCast(table_size)) + 1;
+        literal_width = if (literal_width < 2) 2 else literal_width;
+
+        var blocks: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        defer blocks.deinit(allocator);
+
+        var image_writer: std.Io.Writer.Allocating = .init(allocator);
+        defer image_writer.deinit();
+
+        for (self.images.items) |*image| {
+            var encoder: lzw.Encoder(.little) = try .init(literal_width);
+            try encoder.encode(&image_writer.writer, image.uncompressed_data);
+            try encoder.finish(&image_writer.writer);
+
+            const written = image_writer.written();
+            var offset: usize = 0;
+            while (offset < written.len) {
+                const remaining = written.len - offset;
+                const size = @min(remaining, 255);
+                const data = try allocator.dupe(u8, written[offset..(offset + size)]);
+
+                try blocks.append(allocator, .initData(data));
+
+                offset += size;
+            }
+
+            var graphic_control = std.mem.zeroes(GraphicControlExtension);
+            graphic_control.delay_time = @intFromFloat(image.delay * 100.0);
+            try graphic_control.write(writer);
+
+            image.descriptor.image_data.lzw_minimum_code_size = literal_width;
+            image.descriptor.image_data.image_data = try blocks.toOwnedSlice(allocator);
+            try image.descriptor.write(writer);
+
+            image_writer.clearRetainingCapacity();
+            blocks.clearRetainingCapacity();
+        }
+
+        // Trailer and final data.
+        try writer.writeByte(@intFromEnum(Label.trailer));
+        try writer.flush();
+    }
+};
+
 /// Loads the GIF file at the given path. 'path' should be absolute.
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
     var file = try std.fs.openFileAbsolute(path, .{});
@@ -1269,6 +1422,19 @@ fn getNextExtension(reader: *std.Io.Reader) !?ExtensionType {
         std.debug.print("Invalid extension type: 0x{x}\n", .{byte});
         return null;
     };
+}
+
+fn colorTableSize(len: usize) u3 {
+    if (len <= 2) return 0;
+
+    for (0..7) |i| {
+        const power_of_two = std.math.pow(usize, 2, i);
+        if (len <= power_of_two) {
+            return @intCast(i);
+        }
+    }
+
+    return 7;
 }
 
 const Label = enum(u8) {

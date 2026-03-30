@@ -1,5 +1,6 @@
 const Camera = @import("Camera.zig");
 const canvas = @import("canvas/root.zig");
+const colors = @import("colors.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const input = @import("input.zig");
@@ -85,6 +86,10 @@ pub fn update(self: *Self, delta_time: f32) !void {
     }
 
     self.gui_container.update();
+
+    if (raylib.isKeyPressed(.e)) {
+        try self.exportScene();
+    }
 }
 
 pub fn draw(self: *Self) void {
@@ -128,4 +133,66 @@ fn gifToSpriteSheet(self: Self, path: []const u8) !SpriteSheet {
     std.log.info("Successfully loaded GIF '{s}.", .{path});
 
     return sprite_sheet;
+}
+
+fn exportScene(self: Self) !void {
+    if (self.canvas_scene.numObjects(canvas.Animation) == 0) {
+        std.log.warn("No animations in current scene.", .{});
+        return;
+    }
+
+    const dir = try std.fs.cwd().realpathAlloc(self.allocator, ".");
+    defer self.allocator.free(dir);
+
+    const path = try std.fs.path.join(self.allocator, &.{ dir, "test.gif" });
+    defer self.allocator.free(path);
+
+    std.log.info("Exporting to {s}...", .{path});
+
+    var writer: gif.Writer = try .init(self.allocator);
+    defer writer.deinit();
+
+    const animations = try self.canvas_scene.getObjects(self.allocator, canvas.Animation);
+    defer self.allocator.free(animations);
+
+    var pixels: std.Io.Writer.Allocating = .init(self.allocator);
+    defer pixels.deinit();
+
+    for (animations) |animation| {
+        const anim = animation.as(canvas.Animation);
+        writer.logical_screen_desc.width = @intFromFloat(anim.texture.sheet.frame_size.x);
+        writer.logical_screen_desc.height = @intFromFloat(anim.texture.sheet.frame_size.y);
+
+        const image = try anim.texture.sheet.toImage(self.allocator);
+        defer image.deinit(self.allocator);
+
+        var table: colors.Color3TableTransparency = try .initFromImage(self.allocator, image);
+        defer table.deinit();
+        writer.setGlobalColorTable(try table.toBytes());
+
+        for (anim.texture.sheet.frames) |frame| {
+            const frame_data = try image.getRegionRect(self.allocator, frame.bounds);
+            defer self.allocator.free(frame_data);
+
+            const data = try table.indexImage(.initWithData(
+                frame_data,
+                @intFromFloat(frame.bounds.width),
+                @intFromFloat(frame.bounds.height),
+                .RGBA
+            ));
+
+            try writer.addImage(
+                0,
+                0,
+                @intFromFloat(frame.bounds.width),
+                @intFromFloat(frame.bounds.height),
+                data,
+                frame.delay,
+            );
+        }
+
+        try writer.save(path);
+
+        break;
+    }
 }
