@@ -59,5 +59,6 @@ pub fn main() !void {
 
 test {
     _ = @import("Atlas.zig");
+    _ = @import("colors.zig");
     _ = @import("Image.zig");
 }
