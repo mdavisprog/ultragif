@@ -166,15 +166,24 @@ fn exportScene(self: Self) !void {
         const image = try anim.texture.sheet.toImage(self.allocator);
         defer image.deinit(self.allocator);
 
-        var table: colors.Color3TableTransparency = try .initFromImage(self.allocator, image);
+        var table: colors.ColorTable = try .initImage(self.allocator, image, .{
+            .ignore_transparent = true,
+        });
         defer table.deinit();
-        writer.setGlobalColorTable(try table.toBytes());
+
+        var quantized = try table.quantize(255);
+        defer quantized.deinit();
+
+        var indexer: colors.Indexer = .initQuantized(quantized);
+        try indexer.setTransparentColor(.init(204, 75, 202, 255));
+
+        writer.setGlobalColorTable(try indexer.color_table.toBytes(3));
 
         for (anim.texture.sheet.frames) |frame| {
             const frame_data = try image.getRegionRect(self.allocator, frame.bounds);
             defer self.allocator.free(frame_data);
 
-            const data = try table.indexImage(.initWithData(
+            const data = try indexer.indexImage(.initWithData(
                 frame_data,
                 @intFromFloat(frame.bounds.width),
                 @intFromFloat(frame.bounds.height),
@@ -188,6 +197,7 @@ fn exportScene(self: Self) !void {
                 @intFromFloat(frame.bounds.height),
                 data,
                 frame.delay,
+                if (indexer.transparent_index) |index| @intCast(index) else null,
             );
         }
 

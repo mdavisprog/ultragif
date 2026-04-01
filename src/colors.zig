@@ -59,125 +59,6 @@ pub const Color = struct {
     }
 };
 
-/// A Color table with an entry reserved as the tranparent color.
-///
-/// TODO: Properly handle changing transparent color if the given color equals it. The transparent
-/// color could be chosen by the user instead of generating one.
-pub const ColorTableTransparency = struct {
-    const transparent_color: Color = .init3(204, 75, 202);
-
-    table: ColorTable,
-    transparent_index: ?u32 = null,
-
-    pub fn init(allocator: std.mem.Allocator) ColorTableTransparency {
-        return .{ .table = .init(allocator) };
-    }
-
-    pub fn initFromImage(allocator: std.mem.Allocator, image: Image) !ColorTableTransparency {
-        var result: ColorTableTransparency = .init(allocator);
-
-        switch (image.format) {
-            .RGBA => {
-                var index: usize = 0;
-                while (index < image.length()) : (index += 4) {
-                    const color: Color = .init(
-                        image.data[index + 0],
-                        image.data[index + 1],
-                        image.data[index + 2],
-                        image.data[index + 3],
-                    );
-
-                    _ = try result.add(color);
-                }
-            },
-        }
-
-        return result;
-    }
-
-    pub fn deinit(self: *ColorTableTransparency) void {
-        self.table.deinit();
-    }
-
-    pub fn add(self: *ColorTableTransparency, color: Color) !u32 {
-        if (color.a == 0) {
-            if (self.transparent_index) |index| {
-                return index;
-            }
-
-            self.transparent_index = try self.table.add(transparent_color);
-            return self.transparent_index.?;
-        }
-
-        return self.table.add(color);
-    }
-
-    pub fn count(self: ColorTableTransparency) usize {
-        return self.table.count();
-    }
-
-    pub fn toBytes(self: ColorTableTransparency, channels: u2) ![]u8 {
-        return self.table.toBytes(channels);
-    }
-
-    /// Caller owns the returned memory.
-    pub fn indexImage(self: ColorTableTransparency, image: Image) ![]u8 {
-        const len = @as(usize, @intCast(image.width)) * @as(usize, @intCast(image.height));
-        var result = try self.table.getAllocator().alloc(u8, len);
-
-        for (0..len) |index| {
-            const src_index = index * image.format.bytes();
-            const color: Color = .init(
-                image.data[src_index + 0],
-                image.data[src_index + 1],
-                image.data[src_index + 2],
-                255,
-            );
-
-            const color_index = self.table.get(color) orelse if (self.transparent_index) |t_index|
-                t_index
-            else
-                0;
-            result[index] = @intCast(color_index);
-        }
-
-        return result;
-    }
-
-    pub fn quantize(self: *ColorTableTransparency, size: usize) !ColorTableTransparency {
-        // If the current table has a transparent color, remove it temporarily and add it back
-        // after the quantizing.
-        const has_transparency = false; //self.table.remove(transparent_color);
-        //const _size = if (has_transparency) size - 1 else size;
-        //self.table.reindex();
-
-        var quantized = try self.table.quantize(size);
-        const transparent_index = blk: {
-            if (has_transparency) {
-                self.transparent_index = try self.table.add(transparent_color);
-                break :blk try quantized.add(transparent_color);
-            } else {
-                break :blk null;
-            }
-        };
-
-        return .{
-            .table = quantized,
-            .transparent_index = transparent_index,
-        };
-    }
-
-    pub fn format(self: ColorTableTransparency, writer: *std.Io.Writer) !void {
-        if (self.transparent_index) |index| {
-            try writer.print("transparent_index: {}\n", .{index});
-        } else {
-            try writer.print("transparent_index: null\n", .{});
-        }
-
-        try writer.print("{f}", .{self.table});
-    }
-};
-
 /// Struct to provide functions for managing a list of colors.
 pub const ColorList = struct {
     data: []Color,
@@ -263,11 +144,43 @@ pub const ColorList = struct {
 
 /// Manages a map of a color and their entry in the table.
 pub const ColorTable = struct {
+    pub const Options = struct {
+        ignore_transparent: bool = false,
+    };
+
     map: std.AutoHashMap(Color, u32),
+    options: Options = .{},
     _index: u32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) ColorTable {
         return .{ .map = .init(allocator) };
+    }
+
+    pub fn initOptions(allocator: std.mem.Allocator, options: Options) ColorTable {
+        return .{ .map = .init(allocator), .options = options };
+    }
+
+    pub fn initImage(allocator: std.mem.Allocator, image: Image, options: Options) !ColorTable {
+        var result: ColorTable = .initOptions(allocator, options);
+        errdefer result.deinit();
+
+        switch (image.format) {
+            .RGBA => {
+                var index: usize = 0;
+                while (index < image.length()) : (index += 4) {
+                    const color: Color = .init(
+                        image.data[index + 0],
+                        image.data[index + 1],
+                        image.data[index + 2],
+                        image.data[index + 3],
+                    );
+
+                    _ = try result.add(color);
+                }
+            },
+        }
+
+        return result;
     }
 
     pub fn deinit(self: *ColorTable) void {
@@ -277,11 +190,16 @@ pub const ColorTable = struct {
     pub fn clone(self: ColorTable) !ColorTable {
         return .{
             .map = try self.map.clone(),
+            .options = self.options,
             ._index = self._index,
         };
     }
 
-    pub fn add(self: *ColorTable, color: Color) !u32 {
+    pub fn add(self: *ColorTable, color: Color) !?u32 {
+        if (color.a == 0 and self.options.ignore_transparent) {
+            return null;
+        }
+
         if (self.map.get(color)) |index| {
             return index;
         }
@@ -309,7 +227,6 @@ pub const ColorTable = struct {
         return self.map.contains(color);
     }
 
-    /// TODO: Specify number of channels to serialize
     pub fn toBytes(self: ColorTable, channels: u2) ![]u8 {
         if (channels == 0) {
             return error.InvalidChannels;
@@ -344,12 +261,22 @@ pub const ColorTable = struct {
         return result;
     }
 
-    pub fn quantize(self: ColorTable, size: usize) !ColorTable {
-        if (self.count() < size) {
-            return self.clone();
-        }
-
+    pub fn quantize(self: ColorTable, size: usize) !QuantizedColorMap {
         const allocator = self.getAllocator();
+
+        // If the table already meets the size requirements, then just clone the data and
+        // set the quantized color map to just be the colors in the current table.
+        if (self.count() < size) {
+            var result: QuantizedColorMap = .init(allocator);
+            result.table = try self.clone();
+
+            var colors = self.map.keyIterator();
+            while (colors.next()) |color| {
+                try result.map.put(allocator, color.*, color.*);
+            }
+
+            return result;
+        }
 
         // Keep track of all buckets until desired size is reached.
         var buckets: std.ArrayListUnmanaged(ColorList) = .empty;
@@ -375,16 +302,32 @@ pub const ColorTable = struct {
             }
         }
 
-        var result: ColorTable = .init(allocator);
+        var result: QuantizedColorMap = .init(allocator);
         errdefer result.deinit();
+
+        result.table.options = self.options;
 
         // Average all colors in the bucket and add to result color table.
         for (buckets.items) |item| {
             const color = item.average();
-            _ = try result.add(color);
+            _ = try result.table.add(color);
+
+            for (item.data) |old_color| {
+                try result.map.put(allocator, old_color, color);
+            }
         }
 
         return result;
+    }
+
+    pub fn reindex(self: *ColorTable) void {
+        var index: u32 = 0;
+        var it = self.map.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.* = index;
+            index += 1;
+        }
+        self._index = index;
     }
 
     pub fn format(self: ColorTable, writer: *std.Io.Writer) !void {
@@ -398,6 +341,69 @@ pub const ColorTable = struct {
 
     fn getAllocator(self: ColorTable) std.mem.Allocator {
         return self.map.allocator;
+    }
+};
+
+/// Maps a palette from a pre-quantized color table to new colors.
+pub const QuantizedColorMap = struct {
+    map: std.AutoHashMapUnmanaged(Color, Color) = .empty,
+    table: ColorTable,
+
+    pub fn deinit(self: *QuantizedColorMap) void {
+        self.map.deinit(self.table.getAllocator());
+        self.table.deinit();
+    }
+
+    fn init(allocator: std.mem.Allocator) QuantizedColorMap {
+        return .{ .table = .init(allocator) };
+    }
+};
+
+pub const Indexer = struct {
+    color_table: ColorTable,
+    quantized_colors: std.AutoHashMapUnmanaged(Color, Color) = .empty,
+    transparent_index: ?u32 = null,
+
+    pub fn init(color_table: ColorTable) Indexer {
+        return .{ .color_table = color_table };
+    }
+
+    pub fn initQuantized(quantized: QuantizedColorMap) Indexer {
+        return .{ .color_table = quantized.table, .quantized_colors = quantized.map };
+    }
+
+    pub fn indexImage(self: Indexer, image: Image) ![]u8 {
+        const len = @as(usize, @intCast(image.width)) * @as(usize, @intCast(image.height));
+        var result = try self.color_table.getAllocator().alloc(u8, len);
+
+        for (0..len) |index| {
+            // TODO: Handle different formats (grayscale, rgba, rgb, etc.)
+            const src_index = index * image.format.bytes();
+            const color: Color = .init(
+                image.data[src_index + 0],
+                image.data[src_index + 1],
+                image.data[src_index + 2],
+                image.data[src_index + 3],
+            );
+
+            if (color.a == 0 and self.color_table.options.ignore_transparent) {
+                result[index] = if (self.transparent_index) |i| @as(u8, @intCast(i)) else 0;
+            } else {
+                const new_color = self.quantized_colors.get(color) orelse color;
+                const color_index = self.color_table.get(new_color) orelse 0;
+                result[index] = @intCast(color_index);
+            }
+        }
+
+        return result;
+    }
+
+    pub fn setTransparentColor(self: *Indexer, color: Color) !void {
+        if (self.color_table.contains(color)) {
+            return error.ColorAlreadyExists;
+        }
+
+        self.transparent_index = try self.color_table.add(color);
     }
 };
 
@@ -419,9 +425,9 @@ test "quantize" {
     var quantized = try color_table.quantize(4);
     defer quantized.deinit();
 
-    try std.testing.expectEqual(4, quantized.count());
-    try std.testing.expect(quantized.contains(.init3(157, 119, 179)));
-    try std.testing.expect(quantized.contains(.init3(45, 38, 69)));
-    try std.testing.expect(quantized.contains(.init3(233, 155, 178)));
-    try std.testing.expect(quantized.contains(.init3(90, 120, 219)));
+    try std.testing.expectEqual(4, quantized.table.count());
+    try std.testing.expect(quantized.table.contains(.init3(157, 119, 179)));
+    try std.testing.expect(quantized.table.contains(.init3(45, 38, 69)));
+    try std.testing.expect(quantized.table.contains(.init3(233, 155, 178)));
+    try std.testing.expect(quantized.table.contains(.init3(90, 120, 219)));
 }

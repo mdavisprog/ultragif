@@ -578,6 +578,15 @@ pub const GraphicControlExtension = struct {
         return null;
     }
 
+    fn setDisposalMethod(self: *GraphicControlExtension, method: DisposalMethod) void {
+        self.packed_fields.disposal_method = switch (method) {
+            .leave_in_place => 1,
+            .restore_to_background => 2,
+            .restore_to_previous => 3,
+            else => 0,
+        };
+    }
+
     fn getDisposalMethod(self: GraphicControlExtension) DisposalMethod {
         return switch (self.packed_fields.disposal_method) {
             1 => .leave_in_place,
@@ -1166,6 +1175,7 @@ pub const Writer = struct {
         descriptor: ImageDescriptor,
         uncompressed_data: []const u8,
         delay: f32,
+        transparent_index: ?u8,
     };
 
     logical_screen_desc: LogicalScreenDescriptor,
@@ -1215,6 +1225,7 @@ pub const Writer = struct {
         height: u16,
         data: []const u8,
         delay: f32,
+        transparent_index: ?u8,
     ) !void {
         var descriptor: ImageDescriptor = std.mem.zeroes(ImageDescriptor);
         descriptor.image_left_position = left;
@@ -1226,6 +1237,7 @@ pub const Writer = struct {
             .uncompressed_data = data,
             .descriptor = descriptor,
             .delay = delay,
+            .transparent_index = transparent_index,
         });
     }
 
@@ -1287,6 +1299,13 @@ pub const Writer = struct {
 
             var graphic_control = std.mem.zeroes(GraphicControlExtension);
             graphic_control.delay_time = @intFromFloat(image.delay * 100.0);
+            graphic_control.setDisposalMethod(.restore_to_background);
+
+            if (image.transparent_index) |index| {
+                graphic_control.packed_fields.transparency_color_flag = true;
+                graphic_control.transparency_color_index = index;
+            }
+
             try graphic_control.write(writer);
 
             image.descriptor.image_data.lzw_minimum_code_size = literal_width;
