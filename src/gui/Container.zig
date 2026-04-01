@@ -12,77 +12,6 @@ const widgets = @import("widgets/root.zig");
 const roboto_regular = @embedFile("../assets/fonts/Roboto-Regular.ttf");
 const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
 
-pub const GIFSummary = struct {
-    version: []const u8,
-    dimensions: []const u8,
-    frame_count: []const u8,
-    compressed_size: []const u8,
-    uncompressed_size: []const u8,
-
-    pub fn init(allocator: std.mem.Allocator, app: *const App) !GIFSummary {
-        const loaded_gif = app.loaded_gif.?;
-        const version = try std.fmt.allocPrint(allocator, "Version: {s}", .{loaded_gif.format.header.version});
-        const dimensions = try std.fmt.allocPrint(
-            allocator,
-            "Size: {} x {}",
-            .{ loaded_gif.format.logical_screen_descriptor.width, loaded_gif.format.logical_screen_descriptor.height },
-        );
-        const frame_count = try std.fmt.allocPrint(allocator, "Frames: {}", .{loaded_gif.format.getFrameCount()});
-
-        const compressed_size_amount = try convertBytes(allocator, loaded_gif.format.getCompressedImageSize());
-        defer allocator.free(compressed_size_amount);
-
-        const compressed_size = try std.fmt.allocPrint(
-            allocator,
-            "Compressed Size: {s}",
-            .{compressed_size_amount},
-        );
-
-        const uncompressed_size_amount = try convertBytes(allocator, loaded_gif.sprite_sheet.memorySize());
-        defer allocator.free(uncompressed_size_amount);
-
-        const uncompressed_size = try std.fmt.allocPrint(
-            allocator,
-            "Uncompressed Size: {s}",
-            .{uncompressed_size_amount},
-        );
-
-        return .{
-            .version = version,
-            .dimensions = dimensions,
-            .frame_count = frame_count,
-            .compressed_size = compressed_size,
-            .uncompressed_size = uncompressed_size,
-        };
-    }
-
-    pub fn deinit(self: GIFSummary, allocator: std.mem.Allocator) void {
-        allocator.free(self.version);
-        allocator.free(self.dimensions);
-        allocator.free(self.frame_count);
-        allocator.free(self.compressed_size);
-        allocator.free(self.uncompressed_size);
-    }
-
-    fn convertBytes(allocator: std.mem.Allocator, bytes: usize) ![]const u8 {
-        // Bytes
-        if (bytes < 1024) {
-            return try std.fmt.allocPrint(allocator, "{} B", .{bytes});
-        }
-
-        // Kilobytes
-        if (bytes < 1024 * 1024) {
-            return try std.fmt.allocPrint(allocator, "{} KB", .{bytes / 1024});
-        }
-
-        if (bytes < 1024 * 1024 * 1024) {
-            return try std.fmt.allocPrint(allocator, "{} MB", .{bytes / 1024 / 1024});
-        }
-
-        return try std.fmt.allocPrint(allocator, "{} GB", .{bytes / 1024 / 1024 / 1024});
-    }
-};
-
 /// Manages the GUI
 const Self = @This();
 
@@ -95,7 +24,6 @@ font_shader: raylib.Shader,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
 _state: State,
-_summary: ?GIFSummary = null,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
@@ -149,10 +77,6 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
-    if (self._summary) |summary| {
-        summary.deinit(allocator);
-    }
-
     allocator.free(self._memory);
     raylib.unloadFont(self.font.*);
     allocator.destroy(self.font);
@@ -163,14 +87,6 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
 
 pub fn isMouseInCanvas(self: Self) bool {
     return self.canvas.isHovered();
-}
-
-pub fn loadedGIF(self: *Self, allocator: std.mem.Allocator) !void {
-    if (self._summary) |summary| {
-        summary.deinit(allocator);
-    }
-
-    self._summary = try .init(allocator, self.app);
 }
 
 pub fn update(self: *Self) void {

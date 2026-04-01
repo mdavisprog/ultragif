@@ -10,16 +10,9 @@ const std = @import("std");
 const TextureCache = @import("TextureCache.zig");
 const Viewport = @import("Viewport.zig");
 
-pub const LoadedGIF = struct {
-    format: gif.Format,
-    sprite_sheet: SpriteSheet,
-    file_path: []const u8,
-};
-
 /// State of the application.
 const Self = @This();
 
-loaded_gif: ?LoadedGIF = null,
 canvas_scene: *canvas.Scene,
 gui_container: gui.Container,
 viewport: Viewport = .{},
@@ -43,7 +36,6 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
 pub fn deinit(self: *Self) void {
     const allocator = self.allocator;
 
-    self.unloadGIF(allocator);
     self.gui_container.deinit(allocator);
 
     self.canvas_scene.deinit(allocator);
@@ -98,41 +90,6 @@ pub fn draw(self: *Self) void {
 
     // Draw GUI
     self.gui_container.draw();
-}
-
-pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !void {
-    self.unloadGIF(allocator);
-
-    const format = try gif.load(allocator, path);
-    errdefer format.deinit(allocator);
-
-    const sprite_sheet = try SpriteSheet.init(allocator, format);
-    errdefer sprite_sheet.deinit(allocator);
-
-    self.loaded_gif = .{
-        .format = format,
-        .sprite_sheet = sprite_sheet,
-        .file_path = try allocator.dupe(u8, path),
-    };
-
-    std.debug.print("Successfully loaded GIF file '{s}'.\n", .{path});
-}
-
-fn unloadGIF(self: *Self, allocator: std.mem.Allocator) void {
-    if (self.loaded_gif) |loaded_gif| {
-        loaded_gif.format.deinit(allocator);
-        allocator.free(loaded_gif.file_path);
-    }
-}
-
-fn gifToSpriteSheet(self: Self, path: []const u8) !SpriteSheet {
-    const format = try gif.load(self.allocator, path);
-    defer format.deinit(self.allocator);
-
-    const sprite_sheet: SpriteSheet = try .init(self.allocator, format);
-    std.log.info("Successfully loaded GIF '{s}.", .{path});
-
-    return sprite_sheet;
 }
 
 fn exportScene(self: Self) !void {
