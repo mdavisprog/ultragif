@@ -923,6 +923,36 @@ pub const Block = union(BlockType) {
     graphic_rendering: GraphicRenderingBlock,
     special_purpose: SpecialPurposeBlock,
 
+    fn initGraphicControlExtension(extension: GraphicControlExtension) Block {
+        return .{
+            .control = .{ .graphic_control_extension = extension },
+        };
+    }
+
+    fn initImageDescriptor(descriptor: ImageDescriptor) Block {
+        return .{
+            .graphic_rendering = .{
+                .image_descriptor = descriptor,
+            },
+        };
+    }
+
+    fn initApplicationExtension(extension: ApplicationExtension) Block {
+        return .{
+            .special_purpose = .{
+                .application_extension = extension,
+            },
+        };
+    }
+
+    fn initTrailer() Block {
+        return .{
+            .special_purpose = .{
+                .trailer = {},
+            },
+        };
+    }
+
     fn deinit(self: Block, allocator: std.mem.Allocator) void {
         switch (self) {
             .control => {},
@@ -931,6 +961,31 @@ pub const Block = union(BlockType) {
             },
             .special_purpose => |block| {
                 block.deinit(allocator);
+            },
+        }
+    }
+
+    fn write(self: Block, writer: *std.Io.Writer) !void {
+        switch (self) {
+            .control => |control| {
+                try control.graphic_control_extension.write(writer);
+            },
+            .graphic_rendering => |graphic| {
+                switch (graphic) {
+                    .image_descriptor => |descriptor| {
+                        try descriptor.write(writer);
+                    },
+                    else => {},
+                }
+            },
+            .special_purpose => |special| {
+                switch (special) {
+                    .trailer => try writer.writeByte(@intFromEnum(Label.trailer)),
+                    .application_extension => |app_extension| {
+                        try app_extension.write(writer);
+                    },
+                    else => {},
+                }
             },
         }
     }
@@ -1171,16 +1226,10 @@ pub const Error = error{
 };
 
 pub const Writer = struct {
-    const ImageIndexed = struct {
-        descriptor: ImageDescriptor,
-        uncompressed_data: []const u8,
-        delay: f32,
-        transparent_index: ?u8,
-    };
-
     logical_screen_desc: LogicalScreenDescriptor,
-    images: std.ArrayListUnmanaged(ImageIndexed) = .empty,
+    blocks: std.ArrayListUnmanaged(Block) = .empty,
     allocator: std.mem.Allocator,
+    image_count: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator) !Writer {
         return .{
@@ -1192,13 +1241,12 @@ pub const Writer = struct {
     pub fn deinit(self: *Writer) void {
         const allocator = self.allocator;
 
-        for (self.images.items) |image| {
-            image.descriptor.deinit(self.allocator);
-            self.allocator.free(image.uncompressed_data);
-        }
-        self.images.deinit(allocator);
-
         self.logical_screen_desc.deinit(allocator);
+
+        for (self.blocks.items) |block| {
+            block.deinit(allocator);
+        }
+        self.blocks.deinit(allocator);
     }
 
     /// The color table must contain a list of 24-bit colors in RGB format. The table can only have
@@ -1227,21 +1275,65 @@ pub const Writer = struct {
         delay: f32,
         transparent_index: ?u8,
     ) !void {
+        // Encode the given data block.
+        const table_size = self.logical_screen_desc.packed_fields.global_color_table_size;
+        var literal_width = @as(u4, @intCast(table_size)) + 1;
+        literal_width = if (literal_width < 2) 2 else literal_width;
+
+        var data_blocks: std.ArrayListUnmanaged(DataSubBlock) = .empty;
+        defer data_blocks.deinit(self.allocator);
+
+        var image_writer: std.Io.Writer.Allocating = .init(self.allocator);
+        defer image_writer.deinit();
+
+        var encoder: lzw.Encoder(.little) = try .init(literal_width);
+        try encoder.encode(&image_writer.writer, data);
+        try encoder.finish(&image_writer.writer);
+
+        const written = image_writer.written();
+        var offset: usize = 0;
+        while (offset < written.len) {
+            const remaining = written.len - offset;
+            const size = @min(remaining, 255);
+            const sub_data = try self.allocator.dupe(u8, written[offset..(offset + size)]);
+
+            try data_blocks.append(self.allocator, .initData(sub_data));
+
+            offset += size;
+        }
+
+        var graphic_control = std.mem.zeroes(GraphicControlExtension);
+        graphic_control.delay_time = @intFromFloat(delay * 100.0);
+        graphic_control.setDisposalMethod(.restore_to_background);
+
+        if (transparent_index) |index| {
+            graphic_control.transparency_color_index = index;
+            graphic_control.packed_fields.transparency_color_flag = true;
+        }
+
         var descriptor: ImageDescriptor = std.mem.zeroes(ImageDescriptor);
         descriptor.image_left_position = left;
         descriptor.image_top_position = top;
         descriptor.image_width = width;
         descriptor.image_height = height;
+        descriptor.image_data.lzw_minimum_code_size = literal_width;
+        descriptor.image_data.image_data = try data_blocks.toOwnedSlice(self.allocator);
 
-        try self.images.append(self.allocator, .{
-            .uncompressed_data = data,
-            .descriptor = descriptor,
-            .delay = delay,
-            .transparent_index = transparent_index,
-        });
+        try self.blocks.append(self.allocator, .initGraphicControlExtension(graphic_control));
+        try self.blocks.append(self.allocator, .initImageDescriptor(descriptor));
+
+        self.image_count += 1;
+
+        // Add the Netscape ApplicationExtension if this GIF is an animation.
+        if (self.image_count > 1) {
+            const app_extension: ApplicationExtension = try .netscape(self.allocator, 0);
+            try self.blocks.insert(self.allocator, 0, .initApplicationExtension(app_extension));
+        }
     }
 
     pub fn save(self: *Writer, path: []const u8) !void {
+        try self.blocks.append(self.allocator, .initTrailer());
+
         const file = try std.fs.createFileAbsolute(path, .{});
         defer file.close();
 
@@ -1252,7 +1344,7 @@ pub const Writer = struct {
     }
 
     fn write(self: *Writer, writer: *std.Io.Writer) !void {
-        const allocator = self.allocator;
+        //const allocator = self.allocator;
 
         // Header
         const header: Header = .initDefault();
@@ -1261,63 +1353,11 @@ pub const Writer = struct {
         // Logical Screen Descriptor
         try self.logical_screen_desc.write(writer);
 
-        // Application Extension using NETSCAPE for loop count.
-        // Only write this if multiple frames exist.
-        if (self.images.items.len > 1) {
-            const app_extension: ApplicationExtension = try .netscape(allocator, 0);
-            defer app_extension.deinit(allocator);
-            try app_extension.write(writer);
+        // Write out all blocks
+        for (self.blocks.items) |block| {
+            try block.write(writer);
         }
 
-        // Images
-        const table_size = self.logical_screen_desc.packed_fields.global_color_table_size;
-        var literal_width = @as(u4, @intCast(table_size)) + 1;
-        literal_width = if (literal_width < 2) 2 else literal_width;
-
-        var blocks: std.ArrayListUnmanaged(DataSubBlock) = .empty;
-        defer blocks.deinit(allocator);
-
-        var image_writer: std.Io.Writer.Allocating = .init(allocator);
-        defer image_writer.deinit();
-
-        for (self.images.items) |*image| {
-            var encoder: lzw.Encoder(.little) = try .init(literal_width);
-            try encoder.encode(&image_writer.writer, image.uncompressed_data);
-            try encoder.finish(&image_writer.writer);
-
-            const written = image_writer.written();
-            var offset: usize = 0;
-            while (offset < written.len) {
-                const remaining = written.len - offset;
-                const size = @min(remaining, 255);
-                const data = try allocator.dupe(u8, written[offset..(offset + size)]);
-
-                try blocks.append(allocator, .initData(data));
-
-                offset += size;
-            }
-
-            var graphic_control = std.mem.zeroes(GraphicControlExtension);
-            graphic_control.delay_time = @intFromFloat(image.delay * 100.0);
-            graphic_control.setDisposalMethod(.restore_to_background);
-
-            if (image.transparent_index) |index| {
-                graphic_control.packed_fields.transparency_color_flag = true;
-                graphic_control.transparency_color_index = index;
-            }
-
-            try graphic_control.write(writer);
-
-            image.descriptor.image_data.lzw_minimum_code_size = literal_width;
-            image.descriptor.image_data.image_data = try blocks.toOwnedSlice(allocator);
-            try image.descriptor.write(writer);
-
-            image_writer.clearRetainingCapacity();
-            blocks.clearRetainingCapacity();
-        }
-
-        // Trailer and final data.
-        try writer.writeByte(@intFromEnum(Label.trailer));
         try writer.flush();
     }
 };
