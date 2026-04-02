@@ -1,5 +1,8 @@
+const colors = @import("colors.zig");
 const raylib = @import("raylib");
 const std = @import("std");
+
+const Color = colors.Color;
 
 /// Describes how the bytes in the image are represented.
 pub const Format = enum {
@@ -86,7 +89,7 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.data);
 }
 
-pub fn put(self: *Self, color: raylib.Color, x: u32, y: u32) void {
+pub fn put(self: *Self, color: Color, x: u32, y: u32) void {
     const idx = self.index(x, y);
 
     switch (self.format) {
@@ -102,7 +105,7 @@ pub fn put(self: *Self, color: raylib.Color, x: u32, y: u32) void {
     }
 }
 
-pub fn fill(self: *Self, color: raylib.Color) void {
+pub fn fill(self: *Self, color: Color) void {
     for (0..self.height) |y| {
         for (0..self.width) |x| {
             const idx = self.index(@intCast(x), @intCast(y));
@@ -122,7 +125,7 @@ pub fn fill(self: *Self, color: raylib.Color) void {
     }
 }
 
-pub fn fillRegion(self: *Self, color: raylib.Color, x: u32, y: u32, width: u32, height: u32) void {
+pub fn fillRegion(self: *Self, color: Color, x: u32, y: u32, width: u32, height: u32) void {
     for (y..height) |_y| {
         for (x..width) |_x| {
             const idx = self.index(@intCast(_x), @intCast(_y));
@@ -265,14 +268,14 @@ test "fill region" {
     const y: u32 = 2;
     const w: u32 = 2;
     const h: u32 = 2;
-    const fill_color: raylib.Color = .init(255, 0, 0, 255);
+    const fill_color: Color = .init(255, 0, 0, 255);
     image.fillRegion(fill_color, x, y, w, h);
 
     for (0..image.height) |_y| {
         for (0..image.width) |_x| {
             const idx = image.index(@intCast(_x), @intCast(_y));
             const in_fill = _x >= x + w and x < x + w and _y >= y + h and _y < y + h;
-            const color: raylib.Color = if (in_fill) fill_color else .blank;
+            const color: Color = if (in_fill) fill_color else .blank;
 
             try std.testing.expectEqual(image.data[idx + 0], color.r);
             try std.testing.expectEqual(image.data[idx + 1], color.g);

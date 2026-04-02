@@ -144,7 +144,7 @@ fn exportScene(self: Self) !void {
                 frame_data,
                 @intFromFloat(frame.bounds.width),
                 @intFromFloat(frame.bounds.height),
-                .RGBA
+                .RGBA,
             ));
             defer self.allocator.free(data);
 

@@ -27,6 +27,10 @@ pub const Color = struct {
         return .{ .r = r, .g = g, .b = b };
     }
 
+    pub fn fromArray(data: [4]u8) Color {
+        return .{ .r = data[0], .g = data[1], .b = data[2], .a = data[3] };
+    }
+
     pub fn eql(self: Color, value: Color) bool {
         return self.r == value.r and
             self.g == value.g and
@@ -177,6 +181,9 @@ pub const ColorTable = struct {
 
                     _ = try result.add(color);
                 }
+            },
+            else => {
+                std.debug.panic("Unhandled image format: {s}", .{@tagName(image.format)});
             },
         }
 

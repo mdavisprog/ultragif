@@ -177,7 +177,7 @@ pub const LogicalScreenDescriptor = struct {
             const expected = self.numColors();
             var remaining = expected -| current;
             while (remaining > 0) : (remaining -|= 1) {
-                try writer.writeAll(&.{0, 0, 0});
+                try writer.writeAll(&.{ 0, 0, 0 });
             }
         }
     }
