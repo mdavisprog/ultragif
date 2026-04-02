@@ -3,10 +3,12 @@ const std = @import("std");
 
 /// Describes how the bytes in the image are represented.
 pub const Format = enum {
+    Grayscale,
     RGBA,
 
     pub fn fromRaylib(format: raylib.PixelFormat) Format {
         return switch (format) {
+            .uncompressed_grayscale => .Grayscale,
             .uncompressed_r8g8b8a8 => .RGBA,
             else => {
                 std.debug.panic("Unsupported pixel format {s}", .{@tagName(format)});
@@ -16,6 +18,7 @@ pub const Format = enum {
 
     pub fn bits(self: Format) u8 {
         return switch (self) {
+            .Grayscale => 8,
             .RGBA => 32,
         };
     }
@@ -85,20 +88,36 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
 
 pub fn put(self: *Self, color: raylib.Color, x: u32, y: u32) void {
     const idx = self.index(x, y);
-    self.data[idx + 0] = color.r;
-    self.data[idx + 1] = color.g;
-    self.data[idx + 2] = color.b;
-    self.data[idx + 3] = color.a;
+
+    switch (self.format) {
+        .Grayscale => {
+            self.data[idx] = color.r;
+        },
+        .RGBA => {
+            self.data[idx + 0] = color.r;
+            self.data[idx + 1] = color.g;
+            self.data[idx + 2] = color.b;
+            self.data[idx + 3] = color.a;
+        },
+    }
 }
 
 pub fn fill(self: *Self, color: raylib.Color) void {
     for (0..self.height) |y| {
         for (0..self.width) |x| {
             const idx = self.index(@intCast(x), @intCast(y));
-            self.data[idx + 0] = color.r;
-            self.data[idx + 1] = color.g;
-            self.data[idx + 2] = color.b;
-            self.data[idx + 3] = color.a;
+
+            switch (self.format) {
+                .Grayscale => {
+                    self.data[idx] = color.r;
+                },
+                .RGBA => {
+                    self.data[idx + 0] = color.r;
+                    self.data[idx + 1] = color.g;
+                    self.data[idx + 2] = color.b;
+                    self.data[idx + 3] = color.a;
+                },
+            }
         }
     }
 }
@@ -107,10 +126,18 @@ pub fn fillRegion(self: *Self, color: raylib.Color, x: u32, y: u32, width: u32, 
     for (y..height) |_y| {
         for (x..width) |_x| {
             const idx = self.index(@intCast(_x), @intCast(_y));
-            self.data[idx + 0] = color.r;
-            self.data[idx + 1] = color.g;
-            self.data[idx + 2] = color.b;
-            self.data[idx + 3] = color.a;
+
+            switch (self.format) {
+                .Grayscale => {
+                    self.data[idx] = color.r;
+                },
+                .RGBA => {
+                    self.data[idx + 0] = color.r;
+                    self.data[idx + 1] = color.g;
+                    self.data[idx + 2] = color.b;
+                    self.data[idx + 3] = color.a;
+                },
+            }
         }
     }
 }
@@ -131,12 +158,20 @@ pub fn getRegion(
     for (y..(y + height)) |_y| {
         for (x..(x + width)) |_x| {
             const idx = self.index(@intCast(_x), @intCast(_y));
-            try result.appendSlice(allocator, &.{
-                self.data[idx + 0],
-                self.data[idx + 1],
-                self.data[idx + 2],
-                self.data[idx + 3],
-            });
+
+            switch (self.format) {
+                .Grayscale => {
+                    try result.append(allocator, self.data[idx]);
+                },
+                .RGBA => {
+                    try result.appendSlice(allocator, &.{
+                        self.data[idx + 0],
+                        self.data[idx + 1],
+                        self.data[idx + 2],
+                        self.data[idx + 3],
+                    });
+                },
+            }
         }
     }
 
@@ -296,4 +331,23 @@ test "copy invalid position" {
 
     const err = outer.copy(inner, 6, 6);
     try std.testing.expectEqual(Error.InvalidPosition, err);
+}
+
+test "grayscale" {
+    const allocator = std.testing.allocator;
+
+    var image: Self = try .init(allocator, 2, 2, .Grayscale);
+    defer image.deinit(allocator);
+
+    image.fill(.init(128, 0, 0, 0));
+
+    try std.testing.expectEqual(4, image.length());
+    try std.testing.expectEqualSlices(u8, image.data, &.{ 128, 128, 128, 128 });
+
+    var other: Self = try .init(allocator, 2, 2, .RGBA);
+    defer other.deinit(allocator);
+
+    other.fill(.white);
+
+    try std.testing.expectEqual(Error.FormatMismatch, image.copy(other, 0, 0));
 }
