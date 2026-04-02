@@ -37,6 +37,9 @@ pub fn draw(self: *Self, container: *Container) void {
             .child_gap = 4,
         },
         .background_color = container._state.theme.colors.background,
+        .clip = .{
+            .horizontal = true,
+        },
     });
     {
         switch (self.category) {
@@ -135,10 +138,11 @@ fn drawAnimations(container: *Container) void {
 
     drawTitle(container._state, "Canvas");
 
+    const config: controls.text.Config = .{ .font_size = 18 };
     for (animations) |animation| {
         const _animation = animation.as(canvas.Animation);
         const name = _animation.texture.name();
-        controls.text.label(container._state, formatString(allocator, "{s}", .{name}), .{});
+        controls.text.label(container._state, formatString(allocator, "{s}", .{name}), config);
     }
 }
 
