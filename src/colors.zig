@@ -360,16 +360,16 @@ pub const QuantizedColorMap = struct {
 };
 
 pub const Indexer = struct {
-    color_table: ColorTable,
-    quantized_colors: std.AutoHashMapUnmanaged(Color, Color) = .empty,
+    color_table: *ColorTable,
+    quantized_colors: *std.AutoHashMapUnmanaged(Color, Color),
     transparent_index: ?u32 = null,
 
     pub fn init(color_table: ColorTable) Indexer {
         return .{ .color_table = color_table };
     }
 
-    pub fn initQuantized(quantized: QuantizedColorMap) Indexer {
-        return .{ .color_table = quantized.table, .quantized_colors = quantized.map };
+    pub fn initQuantized(quantized: *QuantizedColorMap) Indexer {
+        return .{ .color_table = &quantized.table, .quantized_colors = &quantized.map };
     }
 
     pub fn indexImage(self: Indexer, image: Image) ![]u8 {

@@ -131,7 +131,7 @@ fn exportScene(self: Self) !void {
         var quantized = try table.quantize(255);
         defer quantized.deinit();
 
-        var indexer: colors.Indexer = .initQuantized(quantized);
+        var indexer: colors.Indexer = .initQuantized(&quantized);
         try indexer.setTransparentColor(.init(204, 75, 202, 255));
 
         writer.setGlobalColorTable(try indexer.color_table.toBytes(3));
@@ -146,6 +146,7 @@ fn exportScene(self: Self) !void {
                 @intFromFloat(frame.bounds.height),
                 .RGBA
             ));
+            defer self.allocator.free(data);
 
             try writer.addImage(
                 0,
