@@ -39,6 +39,7 @@ pub const Format = enum {
 pub const Error = error{
     InvalidPosition,
     FormatMismatch,
+    FailedToCrop,
 };
 
 /// Represents a buffer of bytes in a specific format.
@@ -239,6 +240,44 @@ pub fn length(self: Self) usize {
     return self.format.size(@intCast(self.width), @intCast(self.height));
 }
 
+pub fn crop(self: Self, allocator: std.mem.Allocator, filter: Color) !Self {
+    var minx: usize = std.math.maxInt(usize);
+    var miny: usize = std.math.maxInt(usize);
+    var maxx: usize = 0;
+    var maxy: usize = 0;
+
+    for (0..self.height) |y| {
+        for (0..self.width) |x| {
+            const idx = self.index(@intCast(x), @intCast(y));
+            const color: Color = switch (self.format) {
+                .Grayscale => .init(self.data[idx], 0, 0, 0),
+                .RGBA => .init(
+                    self.data[idx + 0],
+                    self.data[idx + 1],
+                    self.data[idx + 2],
+                    self.data[idx + 3],
+                ),
+            };
+
+            if (!color.eql(filter)) {
+                minx = @min(x, minx);
+                miny = @min(y, miny);
+                maxx = @max(x, maxx);
+                maxy = @max(y, maxy);
+            }
+        }
+    }
+
+    if (minx > maxx or miny > maxy) {
+        return Error.FailedToCrop;
+    }
+
+    const width: u32 = @intCast(maxx - minx + 1);
+    const height: u32 = @intCast(maxy - miny + 1);
+    const data = try self.getRegion(allocator, @intCast(minx), @intCast(miny), width, height);
+    return .initWithData(data, width, height, self.format);
+}
+
 test "fill" {
     const allocator = std.testing.allocator;
 
@@ -353,4 +392,38 @@ test "grayscale" {
     other.fill(.white);
 
     try std.testing.expectEqual(Error.FormatMismatch, image.copy(other, 0, 0));
+}
+
+test "crop" {
+    const allocator = std.testing.allocator;
+
+    var image: Self = try .init(allocator, 32, 32, .RGBA);
+    defer image.deinit(allocator);
+
+    image.fill(.blank);
+
+    var rect1: Self = try .init(allocator, 6, 6, .RGBA);
+    defer rect1.deinit(allocator);
+    rect1.fill(.blue);
+
+    var rect2: Self = try .init(allocator, 6, 6, .RGBA);
+    defer rect2.deinit(allocator);
+    rect2.fill(.green);
+
+    try image.copy(rect1, 20, 8);
+    try image.copy(rect2, 12, 12);
+
+    const cropped = try image.crop(allocator, .blank);
+    defer cropped.deinit(allocator);
+
+    try std.testing.expectEqual(14, cropped.width);
+    try std.testing.expectEqual(10, cropped.height);
+
+    const rect1_region = try cropped.getRegion(allocator, 8, 0, rect1.width, rect1.height);
+    defer allocator.free(rect1_region);
+    try std.testing.expectEqualSlices(u8, rect1.data, rect1_region);
+
+    const rect2_region = try cropped.getRegion(allocator, 0, 4, rect2.width, rect2.height);
+    defer allocator.free(rect2_region);
+    try std.testing.expectEqualSlices(u8, rect2.data, rect2_region);
 }
