@@ -140,20 +140,20 @@ fn exportScene(self: Self) !void {
             const frame_data = try image.getRegionRect(self.allocator, frame.bounds);
             defer self.allocator.free(frame_data);
 
-            const data = try indexer.indexImage(.initWithData(
+            const indexed_image = try indexer.indexImage(.initWithData(
                 frame_data,
                 @intFromFloat(frame.bounds.width),
                 @intFromFloat(frame.bounds.height),
                 .RGBA,
             ));
-            defer self.allocator.free(data);
+            defer indexed_image.deinit(self.allocator);
 
             try writer.addImage(
                 0,
                 0,
                 @intFromFloat(frame.bounds.width),
                 @intFromFloat(frame.bounds.height),
-                data,
+                indexed_image.data,
                 frame.delay,
                 if (indexer.transparent_index) |index| @intCast(index) else null,
             );

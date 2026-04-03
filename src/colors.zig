@@ -402,7 +402,7 @@ pub const Indexer = struct {
         return .{ .color_table = &quantized.table, .quantized_colors = &quantized.map };
     }
 
-    pub fn indexImage(self: Indexer, image: Image) ![]u8 {
+    pub fn indexImage(self: Indexer, image: Image) !Image {
         const len = @as(usize, @intCast(image.width)) * @as(usize, @intCast(image.height));
         var result = try self.color_table.getAllocator().alloc(u8, len);
 
@@ -425,7 +425,7 @@ pub const Indexer = struct {
             }
         }
 
-        return result;
+        return .initWithData(result, image.width, image.height, .Grayscale);
     }
 
     pub fn setTransparentColor(self: *Indexer, color: Color) !void {
