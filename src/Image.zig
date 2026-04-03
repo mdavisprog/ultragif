@@ -42,6 +42,13 @@ pub const Error = error{
     FailedToCrop,
 };
 
+/// Result of crop/cropFromImage functions.
+pub const CroppedResult = struct {
+    x: u32,
+    y: u32,
+    image: Self,
+};
+
 /// Represents a buffer of bytes in a specific format.
 const Self = @This();
 
@@ -88,6 +95,19 @@ pub fn fromTexture(allocator: std.mem.Allocator, texture: raylib.Texture2D) !Sel
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.data);
+}
+
+pub fn getColor(self: Self, x: u32, y: u32) Color {
+    const idx = self.index(x, y);
+    return switch (self.format) {
+        .Grayscale => .init(self.data[idx], 0, 0, 0),
+        .RGBA => .init(
+            self.data[idx + 0],
+            self.data[idx + 1],
+            self.data[idx + 2],
+            self.data[idx + 3],
+        ),
+    };
 }
 
 pub fn put(self: *Self, color: Color, x: u32, y: u32) void {
@@ -240,7 +260,7 @@ pub fn length(self: Self) usize {
     return self.format.size(@intCast(self.width), @intCast(self.height));
 }
 
-pub fn crop(self: Self, allocator: std.mem.Allocator, filter: Color) !Self {
+pub fn crop(self: Self, allocator: std.mem.Allocator, filter: Color) !CroppedResult {
     var minx: usize = std.math.maxInt(usize);
     var miny: usize = std.math.maxInt(usize);
     var maxx: usize = 0;
@@ -248,16 +268,7 @@ pub fn crop(self: Self, allocator: std.mem.Allocator, filter: Color) !Self {
 
     for (0..self.height) |y| {
         for (0..self.width) |x| {
-            const idx = self.index(@intCast(x), @intCast(y));
-            const color: Color = switch (self.format) {
-                .Grayscale => .init(self.data[idx], 0, 0, 0),
-                .RGBA => .init(
-                    self.data[idx + 0],
-                    self.data[idx + 1],
-                    self.data[idx + 2],
-                    self.data[idx + 3],
-                ),
-            };
+            const color = self.getColor(@intCast(x), @intCast(y));
 
             if (!color.eql(filter)) {
                 minx = @min(x, minx);
@@ -275,7 +286,50 @@ pub fn crop(self: Self, allocator: std.mem.Allocator, filter: Color) !Self {
     const width: u32 = @intCast(maxx - minx + 1);
     const height: u32 = @intCast(maxy - miny + 1);
     const data = try self.getRegion(allocator, @intCast(minx), @intCast(miny), width, height);
-    return .initWithData(data, width, height, self.format);
+    return .{
+        .x = @intCast(minx),
+        .y = @intCast(miny),
+        .image = .initWithData(data, width, height, self.format),
+    };
+}
+
+/// Same as crop, but finds the difference in pixels.
+pub fn cropFromImage(self: Self, allocator: std.mem.Allocator, filter: Self) !CroppedResult {
+    if (self.width != filter.width or self.height != filter.height) {
+        return Error.FailedToCrop;
+    }
+
+    var minx: usize = std.math.maxInt(usize);
+    var miny: usize = std.math.maxInt(usize);
+    var maxx: usize = 0;
+    var maxy: usize = 0;
+
+    for (0..self.height) |y| {
+        for (0..self.width) |x| {
+            const src_color = self.getColor(@intCast(x), @intCast(y));
+            const dst_color = filter.getColor(@intCast(x), @intCast(y));
+
+            if (!src_color.eql(dst_color)) {
+                minx = @min(x, minx);
+                miny = @min(y, miny);
+                maxx = @max(x, maxx);
+                maxy = @max(y, maxy);
+            }
+        }
+    }
+
+    if (minx > maxx or miny > maxy) {
+        return Error.FailedToCrop;
+    }
+
+    const width: u32 = @intCast(maxx - minx + 1);
+    const height: u32 = @intCast(maxy - miny + 1);
+    const data = try self.getRegion(allocator, @intCast(minx), @intCast(miny), width, height);
+    return .{
+        .x = @intCast(minx),
+        .y = @intCast(miny),
+        .image = .initWithData(data, width, height, self.format),
+    };
 }
 
 test "fill" {
@@ -414,16 +468,45 @@ test "crop" {
     try image.copy(rect2, 12, 12);
 
     const cropped = try image.crop(allocator, .blank);
-    defer cropped.deinit(allocator);
+    defer cropped.image.deinit(allocator);
 
-    try std.testing.expectEqual(14, cropped.width);
-    try std.testing.expectEqual(10, cropped.height);
+    try std.testing.expectEqual(12, cropped.x);
+    try std.testing.expectEqual(8, cropped.y);
+    try std.testing.expectEqual(14, cropped.image.width);
+    try std.testing.expectEqual(10, cropped.image.height);
 
-    const rect1_region = try cropped.getRegion(allocator, 8, 0, rect1.width, rect1.height);
+    const rect1_region = try cropped.image.getRegion(allocator, 8, 0, rect1.width, rect1.height);
     defer allocator.free(rect1_region);
     try std.testing.expectEqualSlices(u8, rect1.data, rect1_region);
 
-    const rect2_region = try cropped.getRegion(allocator, 0, 4, rect2.width, rect2.height);
+    const rect2_region = try cropped.image.getRegion(allocator, 0, 4, rect2.width, rect2.height);
     defer allocator.free(rect2_region);
     try std.testing.expectEqualSlices(u8, rect2.data, rect2_region);
+}
+
+test "crop image" {
+    const allocator = std.testing.allocator;
+
+    var image: Self = try .init(allocator, 8, 8, .RGBA);
+    defer image.deinit(allocator);
+
+    var filter: Self = try .init(allocator, 8, 8, .RGBA);
+    defer filter.deinit(allocator);
+
+    filter.fill(.blue);
+    image.fill(.blue);
+    image.fillRegion(.red, 2, 2, 2, 4);
+
+    const cropped = try image.cropFromImage(allocator, filter);
+    defer cropped.image.deinit(allocator);
+
+    var red_image: Self = try .init(allocator, 2, 4, .RGBA);
+    defer red_image.deinit(allocator);
+    red_image.fill(.red);
+
+    try std.testing.expectEqual(2, cropped.x);
+    try std.testing.expectEqual(2, cropped.y);
+    try std.testing.expectEqual(2, cropped.image.width);
+    try std.testing.expectEqual(4, cropped.image.height);
+    try std.testing.expectEqualSlices(u8, cropped.image.data, red_image.data);
 }
