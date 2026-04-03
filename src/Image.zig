@@ -127,8 +127,8 @@ pub fn fill(self: *Self, color: Color) void {
 }
 
 pub fn fillRegion(self: *Self, color: Color, x: u32, y: u32, width: u32, height: u32) void {
-    for (y..height) |_y| {
-        for (x..width) |_x| {
+    for (y..(y+height)) |_y| {
+        for (x..(x+width)) |_x| {
             const idx = self.index(@intCast(_x), @intCast(_y));
 
             switch (self.format) {
@@ -313,7 +313,7 @@ test "fill region" {
     for (0..image.height) |_y| {
         for (0..image.width) |_x| {
             const idx = image.index(@intCast(_x), @intCast(_y));
-            const in_fill = _x >= x + w and x < x + w and _y >= y + h and _y < y + h;
+            const in_fill = _x >= x and _x < x + w and _y >= y and _y < y + h;
             const color: Color = if (in_fill) fill_color else .blank;
 
             try std.testing.expectEqual(image.data[idx + 0], color.r);
