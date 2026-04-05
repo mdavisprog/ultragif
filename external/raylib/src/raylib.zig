@@ -107,6 +107,10 @@ pub const Rectangle = extern struct {
         return self.x <= point.x and point.x <= self.x + self.width and
             self.y <= point.y and point.y <= self.y + self.height;
     }
+
+    pub fn max(self: Rectangle) Vector2 {
+        return .init(self.x + self.width, self.y + self.height);
+    }
 };
 
 pub const Image = extern struct {
@@ -737,6 +741,18 @@ pub fn unloadImage(image: Image) void {
     UnloadImage(image);
 }
 
+pub fn exportImage(image: Image, file_name: []const u8) bool {
+    return ExportImage(image, file_name.ptr);
+}
+
+pub fn imageCrop(image: [*c]Image, crop: Rectangle) void {
+    ImageCrop(@ptrCast(image), crop);
+}
+
+pub fn imageFlipVertical(image: *Image) void {
+    ImageFlipVertical(@ptrCast(image));
+}
+
 pub fn loadTextureFromImage(image: Image) Texture2D {
     return LoadTextureFromImage(image);
 }
@@ -941,6 +957,10 @@ extern fn DrawRectangleRounded(rec: Rectangle, roundness: f32, segments: c_int, 
 extern fn LoadImageFromTexture(texture: Texture2D) Image;
 extern fn IsImageValid(image: Image) bool;
 extern fn UnloadImage(image: Image) void;
+extern fn ExportImage(image: Image, file_name: [*c]const u8) bool;
+
+extern fn ImageCrop(image: [*c]Image, crop: Rectangle) void;
+extern fn ImageFlipVertical(image: [*c]Image) void;
 
 extern fn LoadTextureFromImage(image: Image) Texture2D;
 extern fn LoadRenderTexture(width: c_int, height: c_int) RenderTexture2D;
