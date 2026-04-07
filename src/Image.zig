@@ -19,6 +19,13 @@ pub const Format = enum {
         };
     }
 
+    pub fn toRaylib(self: Format) raylib.PixelFormat {
+        return switch(self) {
+            .Grayscale => .uncompressed_grayscale,
+            .RGBA => .uncompressed_r8g8b8a8,
+        };
+    }
+
     pub fn bits(self: Format) u8 {
         return switch (self) {
             .Grayscale => 8,
@@ -93,6 +100,24 @@ pub fn fromTexture(allocator: std.mem.Allocator, texture: raylib.Texture2D) !Sel
     };
 }
 
+pub fn fromRaylibImage(image: raylib.Image) Self {
+    return .initWithData(
+        image.getData(),
+        @intCast(image.width),
+        @intCast(image.height),
+        .fromRaylib(image.getFormat()),
+    );
+}
+
+pub fn toRaylibImage(self: Self) raylib.Image {
+    return .init(
+        @ptrCast(self.data),
+        @intCast(self.width),
+        @intCast(self.height),
+        self.format.toRaylib(),
+    );
+}
+
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.data);
 }
@@ -147,8 +172,8 @@ pub fn fill(self: *Self, color: Color) void {
 }
 
 pub fn fillRegion(self: *Self, color: Color, x: u32, y: u32, width: u32, height: u32) void {
-    for (y..(y+height)) |_y| {
-        for (x..(x+width)) |_x| {
+    for (y..(y + height)) |_y| {
+        for (x..(x + width)) |_x| {
             const idx = self.index(@intCast(_x), @intCast(_y));
 
             switch (self.format) {
