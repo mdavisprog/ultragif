@@ -1303,7 +1303,7 @@ pub const Writer = struct {
         }
 
         var graphic_control = std.mem.zeroes(GraphicControlExtension);
-        graphic_control.delay_time = @intFromFloat(delay * 100.0);
+        graphic_control.delay_time = @intFromFloat(@round(delay * 100.0));
         graphic_control.setDisposalMethod(.restore_to_background);
 
         if (transparent_index) |index| {
