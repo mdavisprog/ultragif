@@ -58,6 +58,11 @@ pub const Builder = struct {
         };
     }
 
+    pub fn deinit(self: Builder, allocator: std.mem.Allocator) void {
+        self.image.deinit(allocator);
+        allocator.free(self.frames);
+    }
+
     pub fn setFrameImage(self: *Builder, image: Image, frame_index: usize, delay: f32) !void {
         if (self.image.format != image.format) {
             return error.InvalidFormat;

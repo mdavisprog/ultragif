@@ -1,6 +1,7 @@
 const Camera = @import("Camera.zig");
 const canvas = @import("canvas/root.zig");
 const colors = @import("colors.zig");
+const Exporter = @import("Exporter.zig");
 const gif = @import("gif.zig");
 const gui = @import("gui/root.zig");
 const input = @import("input.zig");
@@ -18,6 +19,7 @@ gui_container: gui.Container,
 viewport: Viewport = .{},
 texture_cache: TextureCache,
 allocator: std.mem.Allocator,
+export_scene: bool = false,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
     const canvas_scene = try allocator.create(canvas.Scene);
@@ -80,87 +82,21 @@ pub fn update(self: *Self, delta_time: f32) !void {
     self.gui_container.update();
 
     if (raylib.isKeyPressed(.e)) {
-        try self.exportScene();
+        self.export_scene = true;
     }
 }
 
-pub fn draw(self: *Self) void {
+pub fn draw(self: *Self) !void {
+    if (self.export_scene) {
+        self.export_scene = false;
+
+        const exporter: Exporter = .init(self.canvas_scene);
+        try exporter.exportScene(self.allocator);
+    }
+
     // Draw canvas
     self.canvas_scene.draw();
 
     // Draw GUI
     self.gui_container.draw();
-}
-
-fn exportScene(self: Self) !void {
-    if (self.canvas_scene.numObjects(canvas.Animation) == 0) {
-        std.log.warn("No animations in current scene.", .{});
-        return;
-    }
-
-    const dir = try std.fs.cwd().realpathAlloc(self.allocator, ".");
-    defer self.allocator.free(dir);
-
-    const path = try std.fs.path.join(self.allocator, &.{ dir, "test.gif" });
-    defer self.allocator.free(path);
-
-    std.log.info("Exporting to {s}...", .{path});
-
-    var writer: gif.Writer = try .init(self.allocator);
-    defer writer.deinit();
-
-    const animations = try self.canvas_scene.getObjects(self.allocator, canvas.Animation);
-    defer self.allocator.free(animations);
-
-    var pixels: std.Io.Writer.Allocating = .init(self.allocator);
-    defer pixels.deinit();
-
-    for (animations) |animation| {
-        const anim = animation.as(canvas.Animation);
-        writer.logical_screen_desc.width = @intFromFloat(anim.texture.sheet.frame_size.x);
-        writer.logical_screen_desc.height = @intFromFloat(anim.texture.sheet.frame_size.y);
-
-        const image = try anim.texture.sheet.toImage(self.allocator);
-        defer image.deinit(self.allocator);
-
-        var table: colors.ColorTable = try .initImage(self.allocator, image, .{
-            .ignore_transparent = true,
-        });
-        defer table.deinit();
-
-        var quantized = try table.quantize(255);
-        defer quantized.deinit();
-
-        var indexer: colors.Indexer = .initQuantized(&quantized);
-        try indexer.setTransparentColor(.init(204, 75, 202, 255));
-
-        writer.setGlobalColorTable(try indexer.color_table.toBytes(3));
-
-        for (anim.texture.sheet.frames) |frame| {
-            const frame_data = try image.getRegionRect(self.allocator, frame.bounds);
-            defer self.allocator.free(frame_data);
-
-            const indexed_image = try indexer.indexImage(.initWithData(
-                frame_data,
-                @intFromFloat(frame.bounds.width),
-                @intFromFloat(frame.bounds.height),
-                .RGBA,
-            ));
-            defer indexed_image.deinit(self.allocator);
-
-            try writer.addImage(
-                0,
-                0,
-                @intFromFloat(frame.bounds.width),
-                @intFromFloat(frame.bounds.height),
-                indexed_image.data,
-                frame.delay,
-                if (indexer.transparent_index) |index| @intCast(index) else null,
-            );
-        }
-
-        try writer.save(path);
-
-        break;
-    }
 }

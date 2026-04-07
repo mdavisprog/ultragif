@@ -189,10 +189,29 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
 }
 
 pub fn draw(self: Self) void {
+    self.drawInternal(.darkgray);
+}
+
+pub fn drawClearBackground(self: Self) void {
+    self.drawInternal(.blank);
+}
+
+pub fn resetAnimationTimes(self: Self) void {
+    var timelines = self.timelines.valueIterator();
+    while (timelines.next()) |timeline| {
+        timeline.time = 0.0;
+    }
+}
+
+pub fn advanceTime(self: Self, time: f32) void {
+    self.updateTimelines(time);
+}
+
+fn drawInternal(self: Self, background_color: raylib.Color) void {
     self.camera.begin();
     defer self.camera.end();
 
-    raylib.clearBackground(.darkgray);
+    raylib.clearBackground(background_color);
 
     switch (self.draw_type) {
         .animations => {
@@ -233,7 +252,7 @@ fn drawTexture(self: Self) void {
     raylib.drawTextureV(texture.sheet.texture, .zero, .white);
 }
 
-fn updateTimelines(self: *Self, delta_time: f32) void {
+fn updateTimelines(self: Self, delta_time: f32) void {
     var timelines = self.timelines.valueIterator();
     while (timelines.next()) |timeline| {
         timeline.time += delta_time;

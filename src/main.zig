@@ -50,7 +50,7 @@ pub fn main() !void {
 
         // Drawing logic
         raylib.beginDrawing();
-        app.draw();
+        try app.draw();
         raylib.endDrawing();
     }
 
