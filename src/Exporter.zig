@@ -90,7 +90,7 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator) !void {
 
     // Create a render target to render each frame to. The contents of this rendered texture
     // will be used to place frames inside the GIF.
-    const framebuffer = raylib.loadRenderTexture(raylib.getRenderWidth(), raylib.getRenderHeight());
+    const framebuffer = raylib.loadRenderTexture(raylib.getScreenWidth(), raylib.getScreenHeight());
     defer raylib.unloadRenderTexture(framebuffer);
 
     const bounds: raylib.Rectangle = .init(min.x, min.y, max.x - min.x, max.y - min.y);

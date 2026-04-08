@@ -59,7 +59,7 @@ pub fn nextEvent(self: *Self) Event {
 
 fn getSize() raylib.Vector2 {
     return .init(
-        @floatFromInt(raylib.getRenderWidth()),
-        @floatFromInt(raylib.getRenderHeight()),
+        @floatFromInt(raylib.getScreenWidth()),
+        @floatFromInt(raylib.getScreenHeight()),
     );
 }

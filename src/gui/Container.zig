@@ -72,7 +72,7 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         ._memory = memory,
         ._arena = arena,
         ._context = context,
-        ._panel_x_pos = @as(f32, @floatFromInt(raylib.getRenderWidth())) * 0.7,
+        ._panel_x_pos = @as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7,
     };
 }
 
@@ -107,8 +107,8 @@ pub fn frameResized(self: *Self, old_size: raylib.Vector2, new_size: raylib.Vect
 }
 
 pub fn draw(self: *Self) void {
-    const width: f32 = @floatFromInt(raylib.getRenderWidth());
-    const height: f32 = @floatFromInt(raylib.getRenderHeight());
+    const width: f32 = @as(f32, @floatFromInt(raylib.getScreenWidth()));
+    const height: f32 = @as(f32, @floatFromInt(raylib.getScreenHeight()));
 
     const mouse_pos = raylib.getMousePosition();
     const mouse_down = raylib.isMouseButtonDown(.left);
@@ -329,7 +329,7 @@ fn updatePanelSizer(self: *Self) void {
 }
 
 fn clampPanelSize(self: *Self) void {
-    const width: f32 = @floatFromInt(raylib.getRenderWidth());
+    const width: f32 = @floatFromInt(raylib.getScreenWidth());
     const pct = self._panel_x_pos / width;
     if (pct > max_canvas_size_pct) {
         self._panel_x_pos = width * max_canvas_size_pct;

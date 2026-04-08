@@ -32,6 +32,15 @@ pub const Vector2 = extern struct {
         return .{ .x = self.x * value, .y = self.y * value };
     }
 
+    pub fn mul(self: Vector2, value: Vector2) Vector2 {
+        return .init(self.x * value.x, self.y * value.y);
+    }
+
+    pub fn mulMut(self: *Vector2, value: Vector2) void {
+        self.x *= value.x;
+        self.y *= value.y;
+    }
+
     pub fn eql(self: Vector2, value: Vector2) bool {
         return self.x == value.x and self.y == value.y;
     }
@@ -453,12 +462,24 @@ pub fn setWindowState(flags: u32) void {
     SetWindowState(@intCast(flags));
 }
 
+pub fn getScreenWidth() i32 {
+    return @intCast(GetScreenWidth());
+}
+
+pub fn getScreenHeight() i32 {
+    return @intCast(GetScreenHeight());
+}
+
 pub fn getRenderWidth() i32 {
     return @intCast(GetRenderWidth());
 }
 
 pub fn getRenderHeight() i32 {
     return @intCast(GetRenderHeight());
+}
+
+pub fn getWindowScaleDPI() Vector2 {
+    return GetWindowScaleDPI();
 }
 
 pub fn showCursor() void {
@@ -878,8 +899,11 @@ extern fn CloseWindow() void;
 extern fn WindowShouldClose() bool;
 extern fn IsWindowMaximized() bool;
 extern fn SetWindowState(flags: c_uint) void;
+extern fn GetScreenWidth() c_int;
+extern fn GetScreenHeight() c_int;
 extern fn GetRenderWidth() c_int;
 extern fn GetRenderHeight() c_int;
+extern fn GetWindowScaleDPI() Vector2;
 
 extern fn ShowCursor() void;
 extern fn HideCursor() void;
