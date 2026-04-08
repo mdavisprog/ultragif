@@ -42,13 +42,41 @@ pub fn draw(self: *Self, container: *Container) void {
         },
     });
     {
-        switch (self.category) {
-            .animations => {
-                drawAnimations(container);
+        // Container to hold the list of animations/textures.
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .layout = .{
+                .sizing = .{
+                    .width = .percent(1.0),
+                    .height = .grow(0.0, 0.0),
+                },
+                .layout_direction = .top_to_bottom,
             },
-            .texture => {
-                drawTexturesInfo(container);
-            },
+            .clip = .all(true),
+        });
+        {
+            switch (self.category) {
+                .animations => {
+                    drawAnimations(container);
+                },
+                .texture => {
+                    drawTexturesInfo(container);
+                },
+            }
+        }
+        clay.closeElement();
+
+        // Export button
+        const disabled = container.app.canvas_scene.numObjects(canvas.Animation) == 0;
+        const export_result = controls.button.label(
+            container._state,
+            clay.idc("export"),
+            .init("Export"),
+            .{ .disabled = disabled },
+        );
+
+        if (export_result == .clicked) {
+            container.app.export_scene = true;
         }
     }
     clay.closeElement();

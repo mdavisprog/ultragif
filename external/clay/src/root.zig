@@ -402,6 +402,14 @@ pub const ClipElementConfig = extern struct {
     horizontal: bool = false,
     vertical: bool = false,
     child_offset: Vector2 = .{},
+
+    pub fn all(clip: bool) ClipElementConfig {
+        return .{ .horizontal = clip, .vertical = clip };
+    }
+
+    pub fn axes(horizontal: bool, vertical: bool) ClipElementConfig {
+        return .{ .horizontal = horizontal, .vertical = vertical };
+    }
 };
 
 pub const BorderWidth = extern struct {

@@ -19,7 +19,7 @@ pub const Colors = struct {
 };
 
 pub const Constants = struct {
-    button_corner_radius: f32 = 0.5,
+    button_corner_radius: f32 = 0.25,
     separator_horizontal_size: f32 = 4.0,
     separator_vertical_size: f32 = 6.0,
 };
