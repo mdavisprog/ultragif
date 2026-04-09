@@ -124,6 +124,15 @@ pub fn numObjects(self: Self, comptime T: type) usize {
     return result;
 }
 
+pub fn setSelection(self: *Self, object: *canvas.Object) void {
+    self.selected = object;
+}
+
+pub fn isSelected(self: Self, object: *const canvas.Object) bool {
+    const selected = self.selected orelse return false;
+    return selected == object;
+}
+
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
 pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void {
     if (self.action == .none) {

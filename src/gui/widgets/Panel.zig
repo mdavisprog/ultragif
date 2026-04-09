@@ -51,6 +51,7 @@ pub fn draw(self: *Self, container: *Container) void {
                     .height = .grow(0.0, 0.0),
                 },
                 .layout_direction = .top_to_bottom,
+                .child_gap = 4,
             },
             .clip = .all(true),
         });
@@ -167,11 +168,20 @@ fn drawAnimations(container: *Container) void {
     drawTitle(container._state, "Canvas");
 
     const config: controls.text.Config = .{ .font_size = 18 };
+    controls.list.begin();
     for (animations) |animation| {
+        const selected = container.app.canvas_scene.isSelected(animation);
         const _animation = animation.as(canvas.Animation);
         const name = _animation.texture.name();
+        const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
         controls.text.label(container._state, formatString(allocator, "{s}", .{name}), config);
+        controls.list.endItem();
+
+        if (clicked) {
+            container.app.canvas_scene.setSelection(animation);
+        }
     }
+    controls.list.end();
 }
 
 fn drawCategories(self: *Self, container: *Container) void {
