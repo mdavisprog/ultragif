@@ -205,7 +205,7 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
 
     clay.openElement();
     clay.configureOpenElement(.{
-        .corner_radius = .all(0.5),
+        .corner_radius = .all(container._state.theme.constants.button_corner_radius),
         .background_color = background_color,
     });
 
