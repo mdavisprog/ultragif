@@ -1,5 +1,7 @@
 # UltraGIF
-A simple tool to view and edit GIFs.
+A simple tool to view, edit, and export GIFs.
+
+Latest release is [v0.1.0](https://github.com/mdavisprog/ultragif/releases/tag/v0.1.0).
 
 # Credits
 The following open source projects and resources were used in the making of UltraGIF:
