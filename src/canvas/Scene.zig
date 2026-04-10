@@ -25,6 +25,17 @@ const Timeline = struct {
     objects: std.ArrayListUnmanaged(*canvas.Object) = .empty,
     time: f32 = 0.0,
     max: f32 = 0.0,
+
+    fn removeObject(self: *Timeline, object: *const canvas.Object) bool {
+        for (self.objects.items, 0..) |item, i| {
+            if (item == object) {
+                _ = self.objects.orderedRemove(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
 
 /// Holds all objects contained within the Canvas.
@@ -39,60 +50,79 @@ action: Action = .none,
 texture: ?*Texture = null,
 draw_type: DrawType = .animations,
 timelines: std.AutoHashMapUnmanaged(*Texture, Timeline) = .empty,
+allocator: std.mem.Allocator,
 
-pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+pub fn init(allocator: std.mem.Allocator) Self {
+    return .{ .allocator = allocator };
+}
+
+pub fn deinit(self: *Self) void {
     for (self.objects.items) |object| {
-        object.deinit(allocator);
-        allocator.destroy(object);
+        object.deinit(self.allocator);
+        self.allocator.destroy(object);
     }
-    self.objects.deinit(allocator);
+    self.objects.deinit(self.allocator);
 
     var timelines = self.timelines.valueIterator();
     while (timelines.next()) |timeline| {
-        timeline.objects.deinit(allocator);
+        timeline.objects.deinit(self.allocator);
     }
-    self.timelines.deinit(allocator);
+    self.timelines.deinit(self.allocator);
 }
 
-pub fn addShape(
-    self: *Self,
-    allocator: std.mem.Allocator,
-    shape: canvas.Shape.Data,
-    color: raylib.Color,
-) !*canvas.Object {
-    const _shape = try allocator.create(canvas.Shape);
+pub fn addShape(self: *Self, shape: canvas.Shape.Data, color: raylib.Color) !*canvas.Object {
+    const _shape = try self.allocator.create(canvas.Shape);
     _shape.* = .init(shape);
     _shape.color = color;
 
-    return try self.addObject(allocator, _shape);
+    return try self.addObject(self.allocator, _shape);
 }
 
-pub fn addAnimation(
-    self: *Self,
-    allocator: std.mem.Allocator,
-    texture: *Texture,
-) !*canvas.Object {
-    const animation = try allocator.create(canvas.Animation);
+pub fn addAnimation(self: *Self, texture: *Texture) !*canvas.Object {
+    const animation = try self.allocator.create(canvas.Animation);
     animation.* = .init(texture);
 
-    const result = try self.addObject(allocator, animation);
+    const result = try self.addObject(animation);
 
     if (self.timelines.getPtr(animation.texture)) |timeline| {
-        try timeline.objects.append(allocator, result);
+        try timeline.objects.append(self.allocator, result);
     } else {
-        try self.timelines.put(allocator, animation.texture, .{
+        try self.timelines.put(self.allocator, animation.texture, .{
             .max = animation.texture.sheet.totalTime(),
         });
-        try self.timelines.getPtr(animation.texture).?.objects.append(allocator, result);
+        try self.timelines.getPtr(animation.texture).?.objects.append(self.allocator, result);
     }
 
     return result;
 }
 
-pub fn addObject(self: *Self, allocator: std.mem.Allocator, object: anytype) !*canvas.Object {
-    const result = try allocator.create(canvas.Object);
+pub fn addObject(self: *Self, object: anytype) !*canvas.Object {
+    const result = try self.allocator.create(canvas.Object);
     result.* = .init(object);
-    try self.objects.append(allocator, result);
+    try self.objects.append(self.allocator, result);
+
+    return result;
+}
+
+pub fn removeObject(self: *Self, object: *canvas.Object) bool {
+    var result = false;
+    for (self.objects.items, 0..) |item, i| {
+        if (item == object) {
+            _ = self.objects.orderedRemove(i);
+            result = true;
+            break;
+        }
+    }
+
+    if (result) {
+        var timelines = self.timelines.valueIterator();
+        while (timelines.next()) |timeline| {
+            _ = timeline.removeObject(object);
+        }
+
+        object.deinit(self.allocator);
+        self.allocator.destroy(object);
+    }
 
     return result;
 }
@@ -131,6 +161,26 @@ pub fn setSelection(self: *Self, object: *canvas.Object) void {
 pub fn isSelected(self: Self, object: *const canvas.Object) bool {
     const selected = self.selected orelse return false;
     return selected == object;
+}
+
+pub fn deleteSelected(self: *Self) bool {
+    const selected = self.selected orelse return false;
+    self.selected = null;
+
+    if (self.isHovered(selected)) {
+        self.clearHovered();
+    }
+
+    return self.removeObject(selected);
+}
+
+pub fn isHovered(self: Self, object: *const canvas.Object) bool {
+    const hovered = self.hovered orelse return false;
+    return hovered == object;
+}
+
+pub fn clearHovered(self: *Self) void {
+    self.hovered = null;
 }
 
 /// The mouse state may be set to be invalid if it is interacting with the GUI layer.
@@ -192,6 +242,10 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
             }
         },
         .none => {},
+    }
+
+    if (raylib.isKeyPressed(.delete)) {
+        _ = self.deleteSelected();
     }
 
     self.updateTimelines(delta_time);

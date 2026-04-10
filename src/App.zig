@@ -23,7 +23,7 @@ export_scene: bool = false,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
     const canvas_scene = try allocator.create(canvas.Scene);
-    canvas_scene.* = .{};
+    canvas_scene.* = .init(allocator);
 
     const result = try allocator.create(Self);
     result.* = .{
@@ -40,7 +40,7 @@ pub fn deinit(self: *Self) void {
 
     self.gui_container.deinit(allocator);
 
-    self.canvas_scene.deinit(allocator);
+    self.canvas_scene.deinit();
     allocator.destroy(self.canvas_scene);
 
     self.texture_cache.deinit(allocator);
@@ -72,7 +72,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
                 continue;
             };
 
-            const animation = try self.canvas_scene.addAnimation(self.allocator, texture);
+            const animation = try self.canvas_scene.addAnimation(texture);
             animation.position = position;
 
             position.x += texture.sheet.frame_size.x;
