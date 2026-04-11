@@ -23,9 +23,7 @@ pub fn init() Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     var it = self.textures.valueIterator();
     while (it.next()) |texture| {
-        texture.*.sheet.deinit(allocator);
-        allocator.free(texture.*.path);
-        allocator.destroy(texture.*);
+        destroyTexture(allocator, texture.*);
     }
     self.textures.deinit(allocator);
 }
@@ -53,4 +51,17 @@ pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !*Te
     std.log.info("Successfully loaded GIF '{s}.", .{path});
 
     return texture;
+}
+
+pub fn unload(self: *Self, allocator: std.mem.Allocator, path: []const u8) bool {
+    const texture = self.textures.get(path) orelse return false;
+    _ = self.textures.remove(path);
+    destroyTexture(allocator, texture);
+    return true;
+}
+
+fn destroyTexture(allocator: std.mem.Allocator, texture: *Texture) void {
+    texture.sheet.deinit(allocator);
+    allocator.free(texture.path);
+    allocator.destroy(texture);
 }

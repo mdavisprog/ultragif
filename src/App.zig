@@ -22,10 +22,14 @@ allocator: std.mem.Allocator,
 export_scene: bool = false,
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
-    const canvas_scene = try allocator.create(canvas.Scene);
-    canvas_scene.* = .init(allocator);
-
     const result = try allocator.create(Self);
+    const canvas_scene = try allocator.create(canvas.Scene);
+
+    canvas_scene.* = .init(allocator, .init(
+        onAnimationRemoved,
+        result,
+    ));
+
     result.* = .{
         .canvas_scene = canvas_scene,
         .gui_container = try .init(allocator, result),
@@ -99,4 +103,18 @@ pub fn draw(self: *Self) !void {
 
     // Draw GUI
     self.gui_container.draw();
+}
+
+fn onAnimationRemoved(animation: *canvas.Animation, context: *anyopaque) void {
+    const self: *Self = @ptrCast(@alignCast(context));
+    const count = self.canvas_scene.numAnimationsWithTexture(animation.texture);
+    if (count == 0) {
+        if (self.canvas_scene.texture) |texture| {
+            if (texture == animation.texture) {
+                self.canvas_scene.texture = null;
+            }
+        }
+
+        _ = self.texture_cache.unload(self.allocator, animation.texture.path);
+    }
 }

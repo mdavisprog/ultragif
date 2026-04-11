@@ -14,6 +14,27 @@ pub const DrawType = enum {
     texture,
 };
 
+pub const Callbacks = struct {
+    const OnAnimationRemoved = *const fn (*canvas.Animation, context: *anyopaque) void;
+
+    context: *anyopaque,
+    on_animation_removed: OnAnimationRemoved,
+
+    pub fn init(
+        on_animation_removed: OnAnimationRemoved,
+        context: *anyopaque,
+    ) Callbacks {
+        return .{
+            .on_animation_removed = on_animation_removed,
+            .context = context,
+        };
+    }
+
+    fn onAnimationRemoved(self: Callbacks, animation: *canvas.Animation) void {
+        self.on_animation_removed(animation, self.context);
+    }
+};
+
 const Action = enum {
     none,
     pan_camera,
@@ -51,9 +72,10 @@ texture: ?*Texture = null,
 draw_type: DrawType = .animations,
 timelines: std.AutoHashMapUnmanaged(*Texture, Timeline) = .empty,
 allocator: std.mem.Allocator,
+callbacks: Callbacks,
 
-pub fn init(allocator: std.mem.Allocator) Self {
-    return .{ .allocator = allocator };
+pub fn init(allocator: std.mem.Allocator, callbacks: Callbacks) Self {
+    return .{ .allocator = allocator, .callbacks = callbacks };
 }
 
 pub fn deinit(self: *Self) void {
@@ -120,6 +142,10 @@ pub fn removeObject(self: *Self, object: *canvas.Object) bool {
             _ = timeline.removeObject(object);
         }
 
+        if (object.isA(canvas.Animation)) {
+            self.callbacks.onAnimationRemoved(object.as(canvas.Animation));
+        }
+
         object.deinit(self.allocator);
         self.allocator.destroy(object);
     }
@@ -147,6 +173,21 @@ pub fn numObjects(self: Self, comptime T: type) usize {
     const type_id = hash.hashStruct(T);
     for (self.objects.items) |object| {
         if (object.type_id == type_id) {
+            result += 1;
+        }
+    }
+
+    return result;
+}
+
+pub fn numAnimationsWithTexture(self: Self, texture: *const Texture) usize {
+    var result: usize = 0;
+
+    for (self.objects.items) |object| {
+        if (!object.isA(canvas.Animation)) continue;
+
+        const animation = object.as(canvas.Animation);
+        if (animation.texture == texture) {
             result += 1;
         }
     }
@@ -244,8 +285,13 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
         .none => {},
     }
 
-    if (raylib.isKeyPressed(.delete)) {
-        _ = self.deleteSelected();
+    switch (self.draw_type) {
+        .animations => {
+            if (raylib.isKeyPressed(.delete)) {
+                _ = self.deleteSelected();
+            }
+        },
+        .texture => {},
     }
 
     self.updateTimelines(delta_time);
