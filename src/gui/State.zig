@@ -38,6 +38,10 @@ pub fn isFocused(self: Self, element: clay.ElementId) bool {
     return false;
 }
 
+pub fn isFocusedTop(self: Self, element: clay.ElementId) bool {
+    return self.focused[0].eql(element);
+}
+
 pub fn getAllocator(self: *Self) std.mem.Allocator {
     return self.arena.allocator();
 }

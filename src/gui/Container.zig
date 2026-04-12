@@ -15,9 +15,6 @@ const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
 /// Manages the GUI
 const Self = @This();
 
-const sizer_size = 8.0;
-const max_canvas_size_pct = 0.8;
-
 app: *App,
 font: *raylib.Font,
 font_shader: raylib.Shader,
@@ -27,7 +24,6 @@ _state: State,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
-_panel_x_pos: f32 = 0.0,
 _resizing: bool = false,
 
 pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
@@ -68,11 +64,11 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         .app = app,
         .font = font,
         .font_shader = font_shader,
+        .panel = .init(@as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7),
         ._state = try .init(allocator),
         ._memory = memory,
         ._arena = arena,
         ._context = context,
-        ._panel_x_pos = @as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7,
     };
 }
 
@@ -96,14 +92,11 @@ pub fn update(self: *Self) void {
         const debug_enabled = clay.isDebugModeEnabled();
         clay.setDebugModeEnabled(!debug_enabled);
     }
-
-    self.updatePanelSizer();
 }
 
 pub fn frameResized(self: *Self, old_size: raylib.Vector2, new_size: raylib.Vector2) void {
-    const current_pct = self._panel_x_pos / old_size.x;
-    self._panel_x_pos = current_pct * new_size.x;
-    self.clampPanelSize();
+    const current_pct = self.panel.x_pos / old_size.x;
+    self.panel.setPanelPos(current_pct * new_size.x);
 }
 
 pub fn draw(self: *Self) void {
@@ -125,7 +118,7 @@ pub fn draw(self: *Self) void {
         },
     });
 
-    self.canvas.draw(self, self._panel_x_pos);
+    self.canvas.draw(self, self.panel.x_pos);
     self.panel.draw(self);
 
     clay.closeElement();
@@ -291,48 +284,6 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
         else => {
             std.debug.print("Unhandled render command: {s}\n", .{@tagName(command.command_type)});
         },
-    }
-}
-
-fn updatePanelSizer(self: *Self) void {
-    const panel_bounds = self.panel.bounds();
-
-    const half_width: f32 = 4.0;
-    const mouse_pos = raylib.getMousePosition();
-    const bounds: raylib.Rectangle = .init(
-        panel_bounds.x - half_width,
-        panel_bounds.y,
-        half_width * 2.0,
-        panel_bounds.height,
-    );
-
-    if (bounds.contains(mouse_pos)) {
-        input.mouse.setCursor(.resize_ew);
-
-        if (raylib.isMouseButtonPressed(.left)) {
-            self._resizing = true;
-        }
-    } else {
-        input.mouse.setCursor(.default);
-    }
-
-    if (raylib.isMouseButtonReleased(.left)) {
-        self._resizing = false;
-    }
-
-    if (self._resizing) {
-        const mouse_delta = raylib.getMouseDelta();
-        self._panel_x_pos += mouse_delta.x;
-        self.clampPanelSize();
-        input.mouse.setCursor(.resize_ew);
-    }
-}
-
-fn clampPanelSize(self: *Self) void {
-    const width: f32 = @floatFromInt(raylib.getScreenWidth());
-    const pct = self._panel_x_pos / width;
-    if (pct > max_canvas_size_pct) {
-        self._panel_x_pos = width * max_canvas_size_pct;
     }
 }
 

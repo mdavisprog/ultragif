@@ -3,6 +3,11 @@ const plutosvg = @import("plutosvg");
 const raylib = @import("raylib");
 const std = @import("std");
 
+/// Non configurable constants
+pub const z_index = struct {
+    pub const handle: i16 = 2;
+};
+
 pub const Error = error{
     IconLoadFailed,
 };

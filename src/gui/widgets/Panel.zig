@@ -2,6 +2,7 @@ const canvas = @import("../../canvas/root.zig");
 const clay = @import("clay");
 const Container = @import("../Container.zig");
 const controls = @import("../controls/root.zig");
+const input = @import("../../input.zig");
 const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
@@ -16,11 +17,19 @@ pub const Category = enum {
     texture,
 };
 
+const sizer_size: f32 = 8.0;
+const min_size: f32 = 0.2;
+
 /// The right side panel containing information and tools for organizing/manipulating GIFs.
 const Self = @This();
 const id: clay.ElementId = .fromLabel("Panel");
 
 category: Category = .animations,
+x_pos: f32 = 0.0,
+
+pub fn init(x_pos: f32) Self {
+    return .{ .x_pos = x_pos };
+}
 
 pub fn draw(self: *Self, container: *Container) void {
     // Main background panel
@@ -79,6 +88,28 @@ pub fn draw(self: *Self, container: *Container) void {
         if (export_result == .clicked) {
             container.app.export_scene = true;
         }
+
+        const element = clay.getElementData(id);
+        const result = controls.handle.draggable(
+            container._state,
+            .fromLabel("Panel_Sizer"),
+            .init(sizer_size * -0.5, 0.0),
+            .fixed(sizer_size, element.bounding_box.height),
+        );
+
+        switch (result.interaction) {
+            .hovering => {
+                input.mouse.setCursor(.resize_ew);
+            },
+            .dragging => {
+                input.mouse.setCursor(.resize_ew);
+                self.x_pos += result.mouse_delta.x;
+                self.clampSize();
+            },
+            .none => {
+                input.mouse.setCursor(.default);
+            },
+        }
     }
     clay.closeElement();
 
@@ -99,6 +130,19 @@ pub fn bounds(_: Self) raylib.Rectangle {
         element.bounding_box.width,
         element.bounding_box.height,
     );
+}
+
+pub fn setPanelPos(self: *Self, pos: f32) void {
+    self.x_pos = pos;
+    self.clampSize();
+}
+
+fn clampSize(self: *Self) void {
+    const width: f32 = @floatFromInt(raylib.getScreenWidth());
+    const pct = 1.0 - self.x_pos / width;
+    if (pct < min_size) {
+        self.x_pos = (1.0 - min_size) * width;
+    }
 }
 
 fn drawTitle(state: State, text: []const u8) void {
