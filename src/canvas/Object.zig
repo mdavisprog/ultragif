@@ -64,6 +64,7 @@ pub fn isA(self: Self, comptime T: type) bool {
 }
 
 pub fn as(self: Self, comptime T: type) *T {
+    if (!self.isA(T)) std.debug.panic("Object is not of type {s}.", .{@typeName(T)});
     return @ptrCast(@alignCast(self.ptr));
 }
 
