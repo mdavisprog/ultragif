@@ -15,6 +15,7 @@ const Texture = TextureCache.Texture;
 pub const Category = enum {
     animations,
     texture,
+    export_,
 };
 
 const sizer_size: f32 = 8.0;
@@ -51,42 +52,16 @@ pub fn draw(self: *Self, container: *Container) void {
         },
     });
     {
-        // Container to hold the list of animations/textures.
-        clay.openElement();
-        clay.configureOpenElement(.{
-            .layout = .{
-                .sizing = .{
-                    .width = .percent(1.0),
-                    .height = .grow(0.0, 0.0),
-                },
-                .layout_direction = .top_to_bottom,
-                .child_gap = 4,
+        switch (self.category) {
+            .animations => {
+                drawAnimations(container);
             },
-            .clip = .all(true),
-        });
-        {
-            switch (self.category) {
-                .animations => {
-                    drawAnimations(container);
-                },
-                .texture => {
-                    drawTexturesInfo(container);
-                },
-            }
-        }
-        clay.closeElement();
-
-        // Export button
-        const disabled = container.app.canvas_scene.numObjects(canvas.Animation) == 0;
-        const export_result = controls.button.label(
-            container._state,
-            clay.idc("export"),
-            .init("Export"),
-            .{ .disabled = disabled },
-        );
-
-        if (export_result == .clicked) {
-            container.app.export_scene = true;
+            .texture => {
+                drawTexturesInfo(container);
+            },
+            .export_ => {
+                drawExport(container);
+            },
         }
 
         const element = clay.getElementData(id);
@@ -228,6 +203,40 @@ fn drawAnimations(container: *Container) void {
     controls.list.end();
 }
 
+fn drawExport(container: *Container) void {
+    drawTitle(container._state, "Export");
+
+    // Container to hold all options.
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .{
+                .width = .percent(1.0),
+                .height = .grow(0.0, 0.0),
+            },
+            .layout_direction = .top_to_bottom,
+            .child_gap = 4,
+        },
+        .clip = .all(true),
+    });
+    {
+    }
+    clay.closeElement();
+
+    // Export button
+    const disabled = container.app.canvas_scene.numObjects(canvas.Animation) == 0;
+    const export_result = controls.button.label(
+        container._state,
+        clay.idc("export"),
+        .init("Export"),
+        .{ .disabled = disabled },
+    );
+
+    if (export_result == .clicked) {
+        container.app.export_scene = true;
+    }
+}
+
 fn drawCategories(self: *Self, container: *Container) void {
     clay.openElement();
     clay.configureOpenElement(.{
@@ -266,6 +275,7 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
     const icon = switch (category) {
         .animations => Theme.Icon.animated_images,
         .texture => Theme.Icon.texture,
+        .export_ => Theme.Icon.export_,
     };
 
     const layout: clay.LayoutConfig = .{
@@ -284,7 +294,7 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
         self.category = category;
 
         container.app.canvas_scene.draw_type = switch (category) {
-            .animations => .animations,
+            .animations, .export_ => .animations,
             .texture => .texture,
         };
     }
@@ -297,6 +307,7 @@ fn getCategoryId(category: Category) clay.ElementId {
     return switch (category) {
         .animations => clay.idc(prefix ++ "animation"),
         .texture => clay.idc(prefix ++ "texture"),
+        .export_ => clay.idc(prefix ++ "export"),
     };
 }
 
