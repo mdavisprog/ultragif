@@ -25,7 +25,8 @@ pub fn main() !void {
     log.init(!build_config.shipping);
 
     const window_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |
-        @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable));
+        @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable)) |
+        @as(u32, @intFromEnum(raylib.ConfigFlags.window_maximized));
 
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setWindowState(window_flags);
