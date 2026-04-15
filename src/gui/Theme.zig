@@ -3,6 +3,9 @@ const plutosvg = @import("plutosvg");
 const raylib = @import("raylib");
 const std = @import("std");
 
+const roboto_regular = @embedFile("../assets/fonts/Roboto-Regular.ttf");
+const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
+
 /// Non configurable constants
 pub const z_index = struct {
     pub const handle: i16 = 2;
@@ -76,7 +79,12 @@ pub const Icons = struct {
         allocator.destroy(texture);
     }
 
-    fn loadSVG(allocator: std.mem.Allocator, svg: []const u8, _width: f32, _height: f32,) !*raylib.Texture2D {
+    fn loadSVG(
+        allocator: std.mem.Allocator,
+        svg: []const u8,
+        _width: f32,
+        _height: f32,
+    ) !*raylib.Texture2D {
         const document = plutosvg.documentLoadFromData(svg, _width, _height, null, null) orelse {
             return Error.IconLoadFailed;
         };
@@ -113,17 +121,96 @@ const Self = @This();
 colors: Colors = .{},
 constants: Constants = .{},
 icons: Icons,
+font: *raylib.Font,
+font_shader: raylib.Shader,
 
 pub fn init(allocator: std.mem.Allocator) !Self {
+    const font = try loadFont(allocator);
+    const font_shader = raylib.loadShaderFromMemory(null, sdf_fs);
+    if (!raylib.isShaderValid(font_shader)) std.debug.panic("Failed to load font shader!", .{});
     return .{
         .icons = try .init(allocator),
+        .font = font,
+        .font_shader = font_shader,
     };
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     self.icons.deinit(allocator);
+
+    raylib.unloadShader(self.font_shader);
+    raylib.unloadFont(self.font.*);
+    allocator.destroy(self.font);
 }
 
 pub fn getIcon(self: Self, icon: Icon) *raylib.Texture2D {
     return self.icons.textures[@intFromEnum(icon)];
+}
+
+pub fn measureText(
+    self: Self,
+    text: []const u8,
+    font_size: f32,
+    letter_spacing: u16,
+) raylib.Vector2 {
+    const scale_factor = font_size / @as(f32, @floatFromInt(self.font.base_size));
+
+    var max_text_width: f32 = 0.0;
+    var line_text_width: f32 = 0.0;
+    var max_line_char_count: i32 = 0;
+    var line_char_count: i32 = 0;
+
+    for (0..text.len) |i| {
+        defer line_char_count += 1;
+
+        const ch = text[i];
+        if (ch == '\n') {
+            max_text_width = @max(max_text_width, line_text_width);
+            max_line_char_count = @max(max_line_char_count, line_char_count);
+            line_text_width = 0.0;
+            line_char_count = 0;
+            continue;
+        }
+
+        if (ch < 32) continue;
+
+        const codepoint: usize = @intCast(ch - 32);
+        const glyph = self.font.glyphs[codepoint];
+
+        if (glyph.advance_x != 0) {
+            line_text_width += @as(f32, @floatFromInt(glyph.advance_x));
+        } else {
+            line_text_width += self.font.recs[codepoint].width + @as(f32, @floatFromInt(glyph.offset_x));
+        }
+    }
+
+    max_text_width = @max(max_text_width, line_text_width);
+    max_line_char_count = @max(max_line_char_count, line_char_count);
+
+    const scaled_letter_spacing: f32 = @floatFromInt(line_char_count * letter_spacing);
+    return .init( max_text_width * scale_factor + scaled_letter_spacing, font_size);
+}
+
+fn loadFont(allocator: std.mem.Allocator) !*raylib.Font {
+    const font_size: i32 = 32;
+    const glyphs = raylib.loadFontData(
+        roboto_regular,
+        font_size,
+        null,
+        95,
+        .sdf,
+    );
+
+    const font = try allocator.create(raylib.Font);
+    font.* = .{
+        .base_size = font_size,
+        .glyphs = glyphs.ptr,
+        .glyph_count = @intCast(glyphs.len),
+    };
+
+    const font_image = raylib.genImageFontAtlas(font.getGlyphs(), &font.recs, font_size, 0, 0);
+    font.texture = raylib.loadTextureFromImage(font_image);
+    raylib.setTextureFilter(font.texture, .bilinear);
+
+    return font;
 }

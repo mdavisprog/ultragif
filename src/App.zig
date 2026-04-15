@@ -15,7 +15,7 @@ const Viewport = @import("Viewport.zig");
 const Self = @This();
 
 canvas_scene: *canvas.Scene,
-gui_container: gui.Container,
+gui_container: *gui.Container,
 viewport: Viewport = .{},
 texture_cache: TextureCache,
 allocator: std.mem.Allocator,
@@ -32,7 +32,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
 
     result.* = .{
         .canvas_scene = canvas_scene,
-        .gui_container = try .init(allocator, result),
+        .gui_container = try .create(allocator, result),
         .texture_cache = .init(),
         .allocator = allocator,
     };
@@ -43,6 +43,7 @@ pub fn deinit(self: *Self) void {
     const allocator = self.allocator;
 
     self.gui_container.deinit(allocator);
+    allocator.destroy(self.gui_container);
 
     self.canvas_scene.deinit();
     allocator.destroy(self.canvas_scene);

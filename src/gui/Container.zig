@@ -9,15 +9,10 @@ const State = @import("State.zig");
 const std = @import("std");
 const widgets = @import("widgets/root.zig");
 
-const roboto_regular = @embedFile("../assets/fonts/Roboto-Regular.ttf");
-const sdf_fs = @embedFile("../assets/shaders/sdf.fs");
-
 /// Manages the GUI
 const Self = @This();
 
 app: *App,
-font: *raylib.Font,
-font_shader: raylib.Shader,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
 _state: State,
@@ -27,7 +22,9 @@ _context: *clay.Context,
 _resizing: bool = false,
 _delta_time: f32 = 0.0,
 
-pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
+pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
+    const result = try allocator.create(Self);
+
     const min_size: usize = @intCast(clay.minMemorySize());
     const memory = try allocator.alloc(u8, min_size);
     const arena = clay.createArenaWithCapacityAndMemory(min_size, @ptrCast(memory));
@@ -37,47 +34,22 @@ pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
         std.debug.panic("Failed to initialize Clay library!", .{});
     };
 
-    const font_size: i32 = 32;
-    const glyphs = raylib.loadFontData(
-        roboto_regular,
-        font_size,
-        null,
-        95,
-        .sdf,
-    );
+    clay.setMeasureTextFunction(onMeasureText, result);
 
-    const font = try allocator.create(raylib.Font);
-    font.* = .{
-        .base_size = font_size,
-        .glyphs = glyphs.ptr,
-        .glyph_count = @intCast(glyphs.len),
-    };
-
-    const font_image = raylib.genImageFontAtlas(font.getGlyphs(), &font.recs, font_size, 0, 0);
-    font.texture = raylib.loadTextureFromImage(font_image);
-    raylib.setTextureFilter(font.texture, .bilinear);
-
-    const font_shader = raylib.loadShaderFromMemory(null, sdf_fs);
-
-    clay.setMeasureTextFunction(onMeasureText, font);
-
-    return .{
+    result.* = .{
         .app = app,
-        .font = font,
-        .font_shader = font_shader,
         .panel = .init(@as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7),
         ._state = try .init(allocator),
         ._memory = memory,
         ._arena = arena,
         ._context = context,
     };
+
+    return result;
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
-    raylib.unloadFont(self.font.*);
-    allocator.destroy(self.font);
-    raylib.unloadShader(self.font_shader);
 
     self._state.deinit(allocator);
 }
@@ -166,9 +138,9 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             // already allocated for this case.
             const text = raylib.textSubtext(string.chars[0..@intCast(string.length)], 0, string.length);
 
-            raylib.beginShaderMode(self.font_shader);
+            raylib.beginShaderMode(self._state.theme.font_shader);
             raylib.drawTextEx(
-                self.font.*,
+                self._state.theme.font.*,
                 text,
                 .init(bbox.x, bbox.y),
                 @floatFromInt(font_size),
@@ -301,48 +273,15 @@ fn onMeasureText(
     user_data: ?*anyopaque,
 ) callconv(.c) clay.Dimensions {
     const ptr = user_data orelse return .{};
-    const font: *raylib.Font = @ptrCast(@alignCast(ptr));
+    const self: *Self = @ptrCast(@alignCast(ptr));
 
-    const scale_factor = @as(f32, @floatFromInt(config.*.font_size)) /
-        @as(f32, @floatFromInt(font.base_size));
-
-    var max_text_width: f32 = 0.0;
-    var line_text_width: f32 = 0.0;
-    var max_line_char_count: i32 = 0;
-    var line_char_count: i32 = 0;
-
-    for (0..@intCast(text.length)) |i| {
-        defer line_char_count += 1;
-
-        const ch = text.chars[i];
-        if (ch == '\n') {
-            max_text_width = @max(max_text_width, line_text_width);
-            max_line_char_count = @max(max_line_char_count, line_char_count);
-            line_text_width = 0.0;
-            line_char_count = 0;
-            continue;
-        }
-
-        if (ch < 32) continue;
-
-        const codepoint: usize = @intCast(ch - 32);
-        const glyph = font.*.glyphs[codepoint];
-
-        if (glyph.advance_x != 0) {
-            line_text_width += @as(f32, @floatFromInt(glyph.advance_x));
-        } else {
-            line_text_width += font.*.recs[codepoint].width + @as(f32, @floatFromInt(glyph.offset_x));
-        }
-    }
-
-    max_text_width = @max(max_text_width, line_text_width);
-    max_line_char_count = @max(max_line_char_count, line_char_count);
-
-    const letter_spacing: f32 = @floatFromInt(line_char_count * config.*.letter_spacing);
-    return .init(
-        max_text_width * scale_factor + letter_spacing,
+    const size = self._state.theme.measureText(
+        text.str(),
         @floatFromInt(config.*.font_size),
+        config.*.letter_spacing,
     );
+
+    return .init(size.x, size.y);
 }
 
 fn toRaylibColor(color: clay.Color) raylib.Color {
