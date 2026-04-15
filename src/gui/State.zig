@@ -12,19 +12,23 @@ focused: [8]clay.ElementId = @splat(.{}),
 /// The current theme to use for the UI
 theme: Theme,
 
+/// An allocator for persistent memory.
+allocator: std.mem.Allocator,
+
 /// An arena allocator that can be used by all controls and widgets to allocate strings and other
-/// needed objects.
+/// needed objects for a single frame.
 arena: std.heap.ArenaAllocator,
 
 pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
         .theme = try .init(allocator),
+        .allocator = allocator,
         .arena = .init(allocator),
     };
 }
 
-pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
-    self.theme.deinit(allocator);
+pub fn deinit(self: Self) void {
+    self.theme.deinit(self.allocator);
     self.arena.deinit();
 }
 
@@ -42,7 +46,11 @@ pub fn isFocusedTop(self: Self, element: clay.ElementId) bool {
     return self.focused[0].eql(element);
 }
 
-pub fn getAllocator(self: *Self) std.mem.Allocator {
+pub fn getAllocator(self: Self) std.mem.Allocator {
+    return self.allocator;
+}
+
+pub fn getArenaAllocator(self: *Self) std.mem.Allocator {
     return self.arena.allocator();
 }
 

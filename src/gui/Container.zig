@@ -51,7 +51,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
 
-    self._state.deinit(allocator);
+    self._state.deinit();
 }
 
 pub fn isMouseInCanvas(self: Self) bool {

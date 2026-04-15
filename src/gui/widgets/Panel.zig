@@ -139,7 +139,7 @@ fn drawTitle(state: State, text: []const u8) void {
 }
 
 fn drawTexturesInfo(container: *Container) void {
-    const allocator = container._state.getAllocator();
+    const arena = container._state.getArenaAllocator();
 
     var bytes: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
@@ -151,7 +151,7 @@ fn drawTexturesInfo(container: *Container) void {
 
     const memory: units.Memory = .fromBytes(bytes);
     const memory_text = formatString(
-        allocator,
+        arena,
         "Memory: {} {s}",
         .{ memory.amount, memory.symbolString() },
     );
@@ -166,7 +166,7 @@ fn drawTexturesInfo(container: *Container) void {
     while (textures.next()) |texture| {
         const selected = if (current_texture) |t| t == texture.* else false;
         const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
-        controls.text.label(container._state, formatString(allocator, "{s}", .{texture.*.name()}), config);
+        controls.text.label(container._state, formatString(arena, "{s}", .{texture.*.name()}), config);
         controls.list.endItem();
 
         if (clicked) {
@@ -177,12 +177,12 @@ fn drawTexturesInfo(container: *Container) void {
 }
 
 fn drawAnimations(container: *Container) void {
-    const allocator = container._state.getAllocator();
+    const arena = container._state.getArenaAllocator();
 
-    const animations = container.app.canvas_scene.getObjects(allocator, canvas.Animation) catch |err| {
+    const animations = container.app.canvas_scene.getObjects(arena, canvas.Animation) catch |err| {
         std.debug.panic("Failed to get animations from canvas. Error: {}", .{err});
     };
-    defer allocator.free(animations);
+    defer arena.free(animations);
 
     drawTitle(container._state, "Canvas");
 
@@ -193,7 +193,7 @@ fn drawAnimations(container: *Container) void {
         const _animation = animation.as(canvas.Animation);
         const name = _animation.texture.name();
         const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
-        controls.text.label(container._state, formatString(allocator, "{s}", .{name}), config);
+        controls.text.label(container._state, formatString(arena, "{s}", .{name}), config);
         controls.list.endItem();
 
         if (clicked) {
