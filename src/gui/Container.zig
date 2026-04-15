@@ -25,6 +25,7 @@ _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
 _resizing: bool = false,
+_delta_time: f32 = 0.0,
 
 pub fn init(allocator: std.mem.Allocator, app: *App) !Self {
     const min_size: usize = @intCast(clay.minMemorySize());
@@ -85,7 +86,8 @@ pub fn isMouseInCanvas(self: Self) bool {
     return self.canvas.isHovered();
 }
 
-pub fn update(self: *Self) void {
+pub fn update(self: *Self, delta_time: f32) void {
+    self._delta_time = delta_time;
     self._state.update();
 
     if (!build_config.shipping and raylib.isKeyPressed(.f1)) {
@@ -105,9 +107,11 @@ pub fn draw(self: *Self) void {
 
     const mouse_pos = raylib.getMousePosition();
     const mouse_down = raylib.isMouseButtonDown(.left);
+    const mouse_wheel = raylib.getMouseWheelMoveV();
 
     clay.setLayoutDimensions(.init(width, height));
     clay.setPointerState(.init(mouse_pos.x, mouse_pos.y), mouse_down);
+    clay.updateScrollContainers(true, .init(mouse_wheel.x, mouse_wheel.y), self._delta_time);
     clay.beginLayout();
 
     // The root element which covers the entire rendering viewport.

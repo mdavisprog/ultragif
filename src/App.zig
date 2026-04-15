@@ -83,7 +83,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
         }
     }
 
-    self.gui_container.update();
+    self.gui_container.update(delta_time);
 
     if (raylib.isKeyPressed(.e)) {
         self.export_scene = true;

@@ -605,6 +605,14 @@ pub fn initialize(arena: Arena, layout_dimensions: Dimensions, error_handler: Er
     return Clay_Initialize(arena, layout_dimensions, error_handler);
 }
 
+pub fn updateScrollContainers(enable_drag_scrolling: bool, scroll_delta: Vector2, delta_time: f32) void {
+    Clay_UpdateScrollContainers(enable_drag_scrolling, scroll_delta, delta_time);
+}
+
+pub fn getScrollOffset() Vector2 {
+    return Clay_GetScrollOffset();
+}
+
 pub fn setLayoutDimensions(dimensions: Dimensions) void {
     Clay_SetLayoutDimensions(dimensions);
 }
@@ -725,6 +733,8 @@ extern fn Clay_MinMemorySize() u32;
 extern fn Clay_CreateArenaWithCapacityAndMemory(capacity: usize, memory: ?*anyopaque) Arena;
 extern fn Clay_SetPointerState(position: Vector2, pointer_down: bool) void;
 extern fn Clay_Initialize(arena: Arena, layout_dimension: Dimensions, error_handler: ErrorHandler) ?*Context;
+extern fn Clay_UpdateScrollContainers(enable_drag_scrolling: bool, scroll_delta: Vector2, delta_time: f32) void;
+extern fn Clay_GetScrollOffset() Vector2;
 extern fn Clay_SetLayoutDimensions(dimensions: Dimensions) void;
 extern fn Clay_BeginLayout() void;
 extern fn Clay_EndLayout() RenderCommandArray;
