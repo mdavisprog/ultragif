@@ -90,6 +90,7 @@ pub fn begin(state: State, id: clay.ElementId, config: Config) Result {
     };
 
     const result: Result = blk: {
+        if (config.disabled) break :blk .none;
         if (state.isFocused(id) and raylib.isMouseButtonDown(.left)) break :blk .pressed;
         if (state.isFocused(id) and clay.pointerOver(id) and raylib.isMouseButtonReleased(.left)) break :blk .clicked;
         if (clay.pointerOver(id)) break :blk .hovered;
