@@ -216,10 +216,13 @@ fn drawExport(container: *Container) void {
             },
             .layout_direction = .top_to_bottom,
             .child_gap = 4,
+            .child_alignment = .init(.center, .top),
         },
         .clip = .all(true),
     });
     {
+        controls.text.label(container._state, "File Name", .{ .text_alignment = .center });
+        controls.input.text(&container._state, .fromLabel("File_Name_Input"));
     }
     clay.closeElement();
 

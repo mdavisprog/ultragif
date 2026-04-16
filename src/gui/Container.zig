@@ -48,7 +48,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
     return result;
 }
 
-pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
 
     self._state.deinit();
@@ -60,7 +60,7 @@ pub fn isMouseInCanvas(self: Self) bool {
 
 pub fn update(self: *Self, delta_time: f32) void {
     self._delta_time = delta_time;
-    self._state.update();
+    self._state.update(delta_time);
 
     if (!build_config.shipping and raylib.isKeyPressed(.f1)) {
         const debug_enabled = clay.isDebugModeEnabled();

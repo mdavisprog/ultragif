@@ -23,6 +23,8 @@ pub const Colors = struct {
     button_disabled: clay.Color = .initu8(110, 100, 86, 255),
     text: clay.Color = .initu8(235, 235, 235, 255),
     text_disabled: clay.Color = .initu8(180, 180, 180, 255),
+    text_input: clay.Color = .initu8(67, 72, 80, 255),
+    text_input_focused: clay.Color = .initu8(57, 62, 70, 255),
     separator: clay.Color = .initu8(57, 62, 70, 255),
 };
 
@@ -30,6 +32,7 @@ pub const Constants = struct {
     button_corner_radius: f32 = 0.25,
     separator_horizontal_size: f32 = 4.0,
     separator_vertical_size: f32 = 6.0,
+    text_input_font_size: u16 = 18,
 };
 
 pub const Icon = enum(u16) {

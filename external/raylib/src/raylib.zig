@@ -888,6 +888,12 @@ pub fn measureTextEx(font: Font, text: []const u8, font_size: f32, spacing: f32)
     return MeasureTextEx(font, text.ptr, font_size, spacing);
 }
 
+pub fn codepointToUTF8(codepoint: i32) []const u8 {
+    var size: c_int = 0;
+    const result = CodepointToUTF8(@intCast(codepoint), &size);
+    return result[0..@intCast(size)];
+}
+
 fn onTraceLog(log_level: c_int, text: [*c]const u8) callconv(.c) void {
     if (trace_log_callback) |callback| {
         callback(@enumFromInt(log_level), std.mem.span(text));
@@ -1010,6 +1016,8 @@ extern fn DrawTextEx(font: Font, text: [*c]const u8, position: Vector2, font_siz
 extern fn TextSubtext(text: [*c]const u8, position: c_int, length: c_int) [*c]const u8;
 
 extern fn MeasureTextEx(font: Font, text: [*c]const u8, font_size: f32, spacing: f32) Vector2;
+
+extern fn CodepointToUTF8(codepoint: c_int, utf8_size: [*c]c_int) [*c]const u8;
 
 extern var onTraceLogSignature: ?*const fn (log_level: c_int, text: [*c]const u8) callconv(.c) void;
 extern fn registerTraceLog() void;

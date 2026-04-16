@@ -1,7 +1,24 @@
 const clay = @import("clay");
+const controls = @import("controls/root.zig");
 const raylib = @import("raylib");
 const std = @import("std");
 const Theme = @import("Theme.zig");
+
+/// Simple struct to hold information about the blinking cursor.
+pub const BlinkingCursor = struct {
+    const max_time: f32 = 0.5;
+
+    time: f32 = 0.0,
+    on: bool = true,
+
+    pub fn reset(self: *BlinkingCursor) void {
+        self.time = 0.0;
+        self.on = true;
+    }
+};
+
+/// Alias for mapping between an element and its data.
+pub const ControlData = std.AutoHashMap(clay.ElementId, controls.Data);
 
 /// Manages what control is focused along with control specific data.
 const Self = @This();
@@ -19,15 +36,28 @@ allocator: std.mem.Allocator,
 /// needed objects for a single frame.
 arena: std.heap.ArenaAllocator,
 
+/// Global blinking text input cursor
+blinking_cursor: BlinkingCursor = .{},
+
+/// Mapped data between an element and its data.
+control_data: ControlData,
+
 pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
         .theme = try .init(allocator),
         .allocator = allocator,
         .arena = .init(allocator),
+        .control_data = .init(allocator),
     };
 }
 
-pub fn deinit(self: Self) void {
+pub fn deinit(self: *Self) void {
+    var it = self.control_data.valueIterator();
+    while (it.next()) |data| {
+        data.deinit(self.allocator);
+    }
+    self.control_data.deinit();
+
     self.theme.deinit(self.allocator);
     self.arena.deinit();
 }
@@ -54,7 +84,29 @@ pub fn getArenaAllocator(self: *Self) std.mem.Allocator {
     return self.arena.allocator();
 }
 
-pub fn update(self: *Self) void {
+pub fn getData(self: Self, id: clay.ElementId) ?*controls.Data {
+    return self.control_data.getPtr(id);
+}
+
+pub fn addData(self: *Self, id: clay.ElementId, data: controls.Data) *controls.Data {
+    if (self.control_data.contains(id)) {
+        std.debug.panic("Given id already exists!", .{});
+    }
+
+    self.control_data.put(id, data) catch |err| {
+        std.debug.panic("Failed to add data of type '{s}': {}", .{ @tagName(data), err });
+    };
+
+    return self.control_data.getPtr(id).?;
+}
+
+pub fn update(self: *Self, delta_time: f32) void {
+    self.blinking_cursor.time += delta_time;
+    if (self.blinking_cursor.time >= BlinkingCursor.max_time) {
+        self.blinking_cursor.time = 0.0;
+        self.blinking_cursor.on = !self.blinking_cursor.on;
+    }
+
     self.updateFocused();
     _ = self.arena.reset(.retain_capacity);
 }
