@@ -70,7 +70,8 @@ pub const Data = struct {
 };
 
 pub fn text(state: *State, id: clay.ElementId, default_text: []const u8) void {
-    const height: f32 = @floatFromInt(state.theme.constants.text_input_font_size + 6);
+    const font_size = state.theme.constants.font_size;
+    const height: f32 = @floatFromInt(font_size + 6);
 
     clay.openElement();
 
@@ -137,14 +138,8 @@ pub fn text(state: *State, id: clay.ElementId, default_text: []const u8) void {
         }
     }
 
-    const size = state.theme.measureText(
-        data.input.cursorStr(),
-        @floatFromInt(state.theme.constants.text_input_font_size),
-        0,
-    );
-    controls.text.label(state.*, data.input.str(), .{
-        .font_size = state.theme.constants.text_input_font_size,
-    });
+    const size = state.theme.measureText(data.input.cursorStr(), @floatFromInt(font_size), 0);
+    controls.text.label(state.*, data.input.str(), .{ .font_size = font_size });
 
     if (is_focused) {
         const cursor_color: clay.Color = if (state.blinking_cursor.on)
