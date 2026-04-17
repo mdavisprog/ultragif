@@ -12,6 +12,21 @@ pub const Data = struct {
         self.contents.deinit(allocator);
     }
 
+    pub fn str(self: Data) []const u8 {
+        return self.contents.items;
+    }
+
+    pub fn len(self: Data) usize {
+        return self.contents.items.len;
+    }
+
+    pub fn setContents(self: *Data, allocator: std.mem.Allocator, contents: []const u8) void {
+        self.contents.clearRetainingCapacity();
+        self.contents.appendSlice(allocator, contents) catch |err| {
+            std.debug.panic("Failed to set contents: {}", .{err});
+        };
+    }
+
     fn init(allocator: std.mem.Allocator, contents: []const u8) Data {
         var contents_: std.ArrayListUnmanaged(u8) = .empty;
         contents_.appendSlice(allocator, contents) catch |err| {
@@ -49,20 +64,12 @@ pub const Data = struct {
         self.cursor_pos = std.math.clamp(self.cursor_pos + contents.len, 0, self.len());
     }
 
-    fn str(self: Data) []const u8 {
-        return self.contents.items;
-    }
-
     fn cursorStr(self: Data) []const u8 {
         return self.contents.items[0..self.cursor_pos];
     }
-
-    fn len(self: Data) usize {
-        return self.contents.items.len;
-    }
 };
 
-pub fn text(state: *State, id: clay.ElementId) void {
+pub fn text(state: *State, id: clay.ElementId, default_text: []const u8) void {
     const height: f32 = @floatFromInt(state.theme.constants.text_input_font_size + 6);
 
     clay.openElement();
@@ -92,7 +99,7 @@ pub fn text(state: *State, id: clay.ElementId) void {
     });
 
     const data = state.getData(id) orelse state.addData(id, .{
-        .input = .init(state.getAllocator(), "Hello"),
+        .input = .init(state.getAllocator(), default_text),
     });
 
     if (is_focused) {

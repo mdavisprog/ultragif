@@ -17,7 +17,7 @@ pub fn init(scene: *const canvas.Scene) Self {
 }
 
 /// This function must be called between raylibs BeginDrawing/EndDrawing block.
-pub fn exportScene(self: Self, allocator: std.mem.Allocator) !void {
+pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const u8) !void {
     const animations = try self.scene.getObjects(allocator, canvas.Animation);
     defer allocator.free(animations);
 
@@ -113,7 +113,7 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator) !void {
         self.scene.advanceTime(delay);
     }
 
-    try exportSpriteSheet(allocator, builder);
+    try exportSpriteSheet(allocator, builder, file_name);
 }
 
 fn renderFrame(
@@ -133,7 +133,11 @@ fn renderFrame(
     return image;
 }
 
-fn exportSpriteSheet(allocator: std.mem.Allocator, builder: SpriteSheet.Builder) !void {
+fn exportSpriteSheet(
+    allocator: std.mem.Allocator,
+    builder: SpriteSheet.Builder,
+    file_name: []const u8,
+) !void {
     var gif_writer: gif.Writer = try .init(allocator);
     defer gif_writer.deinit();
 
@@ -168,7 +172,7 @@ fn exportSpriteSheet(allocator: std.mem.Allocator, builder: SpriteSheet.Builder)
         defer allocator.free(frame_data);
 
         const indexed_data = try indexer.indexImage(.initWithData(
-            frame_data, 
+            frame_data,
             width,
             height,
             .RGBA,
@@ -189,7 +193,8 @@ fn exportSpriteSheet(allocator: std.mem.Allocator, builder: SpriteSheet.Builder)
     const exe_dir = try std.fs.selfExeDirPathAlloc(allocator);
     defer allocator.free(exe_dir);
 
-    const path = try std.fmt.allocPrint(allocator, "{s}/export.gif", .{exe_dir});
+    const stem = std.fs.path.stem(file_name);
+    const path = try std.fmt.allocPrint(allocator, "{s}/{s}.gif", .{ exe_dir, stem });
     defer allocator.free(path);
 
     try gif_writer.save(path);

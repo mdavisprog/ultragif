@@ -11,6 +11,11 @@ const std = @import("std");
 const TextureCache = @import("TextureCache.zig");
 const Viewport = @import("Viewport.zig");
 
+pub const ExportSettings = struct {
+    file_name: []const u8 = "",
+    export_scene: bool = false,
+};
+
 /// State of the application.
 const Self = @This();
 
@@ -19,7 +24,7 @@ gui_container: *gui.Container,
 viewport: Viewport = .{},
 texture_cache: TextureCache,
 allocator: std.mem.Allocator,
-export_scene: bool = false,
+export_settings: ExportSettings = .{},
 
 pub fn init(allocator: std.mem.Allocator) !*Self {
     const result = try allocator.create(Self);
@@ -49,6 +54,11 @@ pub fn deinit(self: *Self) void {
     allocator.destroy(self.canvas_scene);
 
     self.texture_cache.deinit(allocator);
+}
+
+pub fn exportScene(self: *Self, file_name: []const u8) void {
+    self.export_settings.export_scene = true;
+    self.export_settings.file_name = file_name;
 }
 
 pub fn update(self: *Self, delta_time: f32) !void {
@@ -85,18 +95,14 @@ pub fn update(self: *Self, delta_time: f32) !void {
     }
 
     self.gui_container.update(delta_time);
-
-    if (raylib.isKeyPressed(.e)) {
-        self.export_scene = true;
-    }
 }
 
 pub fn draw(self: *Self) !void {
-    if (self.export_scene) {
-        self.export_scene = false;
+    if (self.export_settings.export_scene) {
+        self.export_settings.export_scene = false;
 
         const exporter: Exporter = .init(self.canvas_scene);
-        try exporter.exportScene(self.allocator);
+        try exporter.exportScene(self.allocator, self.export_settings.file_name);
     }
 
     // Draw canvas

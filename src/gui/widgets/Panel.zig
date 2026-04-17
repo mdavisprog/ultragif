@@ -206,6 +206,8 @@ fn drawAnimations(container: *Container) void {
 fn drawExport(container: *Container) void {
     drawTitle(container._state, "Export");
 
+    const export_file_name: clay.ElementId = .fromLabel("Export_File_Name");
+
     // Container to hold all options.
     clay.openElement();
     clay.configureOpenElement(.{
@@ -222,7 +224,7 @@ fn drawExport(container: *Container) void {
     });
     {
         controls.text.label(container._state, "File Name", .{ .text_alignment = .center });
-        controls.input.text(&container._state, .fromLabel("File_Name_Input"));
+        controls.input.text(&container._state, export_file_name, "export");
     }
     clay.closeElement();
 
@@ -236,7 +238,11 @@ fn drawExport(container: *Container) void {
     );
 
     if (export_result == .clicked) {
-        container.app.export_scene = true;
+        const export_data = container._state.getData(export_file_name).?;
+        if (export_data.input.len() == 0) {
+            export_data.input.setContents(container._state.getAllocator(), "export");
+        }
+        container.app.exportScene(export_data.input.str());
     }
 }
 
