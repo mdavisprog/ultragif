@@ -7,6 +7,7 @@ const input = @import("../input.zig");
 const raylib = @import("raylib");
 const State = @import("State.zig");
 const std = @import("std");
+const version = @import("version");
 const widgets = @import("widgets/root.zig");
 
 /// Manages the GUI
@@ -15,6 +16,7 @@ const Self = @This();
 app: *App,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
+status_bar: widgets.StatusBar,
 state: State,
 _memory: []const u8,
 _arena: clay.Arena,
@@ -36,9 +38,16 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 
     clay.setMeasureTextFunction(onMeasureText, result);
 
+    const status = try std.fmt.allocPrint(allocator, "Welcome to UltraGIF v{s}!", .{version.full});
+    defer allocator.free(status);
+
+    var status_bar: widgets.StatusBar = .{};
+    try status_bar.setStatus(allocator, status);
+
     result.* = .{
         .app = app,
         .panel = .init(@as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7),
+        .status_bar = status_bar,
         .state = try .init(allocator),
         ._memory = memory,
         ._arena = arena,
@@ -51,6 +60,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
 
+    self.status_bar.deinit(allocator);
     self.state.deinit();
 }
 
@@ -94,8 +104,36 @@ pub fn draw(self: *Self) void {
         },
     });
 
-    self.canvas.draw(self, self.panel.x_pos);
-    self.panel.draw(self);
+    // Vertical container that holds two controls. The first being the horizontal container holding
+    // the canvas and the panel. The second will be the status bar.
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .layout_direction = .top_to_bottom,
+            .sizing = .percent(1.0, 1.0),
+        },
+    });
+    {
+        // Horizontal container for the canvas and panel.
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .layout = .{
+                .sizing = .{
+                    .width = .percent(1.0),
+                    .height = .grow(0.0, 0.0),
+                },
+            },
+        });
+        {
+            self.canvas.draw(self, self.panel.x_pos);
+            self.panel.draw(self);
+        }
+        clay.closeElement();
+
+        // Status bar
+        self.status_bar.draw(self);
+    }
+    clay.closeElement();
 
     clay.closeElement();
 
@@ -154,6 +192,7 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             const border_top: f32 = @floatFromInt(border.width.top);
             const border_right: f32 = @floatFromInt(border.width.right);
             const border_bottom: f32 = @floatFromInt(border.width.bottom);
+
             // Left border
             if (border.width.left > 0) {
                 raylib.drawRectangle(
