@@ -17,12 +17,17 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     }
 }
 
-pub fn setStatus(self: *Self, allocator: std.mem.Allocator, status: []const u8) !void {
+pub fn setStatus(
+    self: *Self,
+    allocator: std.mem.Allocator,
+    comptime format: []const u8,
+    args: anytype,
+) !void {
     if (self.status) |current| {
         allocator.free(current);
     }
 
-    self.status = try allocator.dupe(u8, status);
+    self.status = try std.fmt.allocPrint(allocator, format, args);
 }
 
 pub fn draw(self: Self, container: *Container) void {

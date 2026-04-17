@@ -17,13 +17,13 @@ pub fn init(scene: *const canvas.Scene) Self {
 }
 
 /// This function must be called between raylibs BeginDrawing/EndDrawing block.
-pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const u8) !void {
+pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const u8) !bool {
     const animations = try self.scene.getObjects(allocator, canvas.Animation);
     defer allocator.free(animations);
 
     if (animations.len == 0) {
         std.log.info("No animations available to export.", .{});
-        return;
+        return false;
     }
 
     std.log.info("Exporting {} animations", .{animations.len});
@@ -114,6 +114,8 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const 
     }
 
     try exportSpriteSheet(allocator, builder, file_name);
+
+    return true;
 }
 
 fn renderFrame(

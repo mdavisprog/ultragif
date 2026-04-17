@@ -102,7 +102,21 @@ pub fn draw(self: *Self) !void {
         self.export_settings.export_scene = false;
 
         const exporter: Exporter = .init(self.canvas_scene);
-        try exporter.exportScene(self.allocator, self.export_settings.file_name);
+        const success = try exporter.exportScene(self.allocator, self.export_settings.file_name);
+
+        if (success) {
+            try self.gui_container.status_bar.setStatus(
+                self.allocator,
+                "Successfully exported scene to gif!",
+                .{},
+            );
+        } else {
+            try self.gui_container.status_bar.setStatus(
+                self.allocator,
+                "Failed to export scene.",
+                .{},
+            );
+        }
     }
 
     // Draw canvas

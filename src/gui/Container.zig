@@ -38,11 +38,8 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 
     clay.setMeasureTextFunction(onMeasureText, result);
 
-    const status = try std.fmt.allocPrint(allocator, "Welcome to UltraGIF v{s}!", .{version.full});
-    defer allocator.free(status);
-
     var status_bar: widgets.StatusBar = .{};
-    try status_bar.setStatus(allocator, status);
+    try status_bar.setStatus(allocator, "Welcome to UltraGIF v{s}!", .{version.full});
 
     result.* = .{
         .app = app,
