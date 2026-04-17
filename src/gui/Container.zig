@@ -15,7 +15,7 @@ const Self = @This();
 app: *App,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
-_state: State,
+state: State,
 _memory: []const u8,
 _arena: clay.Arena,
 _context: *clay.Context,
@@ -39,7 +39,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
     result.* = .{
         .app = app,
         .panel = .init(@as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7),
-        ._state = try .init(allocator),
+        .state = try .init(allocator),
         ._memory = memory,
         ._arena = arena,
         ._context = context,
@@ -51,7 +51,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
 
-    self._state.deinit();
+    self.state.deinit();
 }
 
 pub fn isMouseInCanvas(self: Self) bool {
@@ -60,7 +60,7 @@ pub fn isMouseInCanvas(self: Self) bool {
 
 pub fn update(self: *Self, delta_time: f32) void {
     self._delta_time = delta_time;
-    self._state.update(delta_time);
+    self.state.update(delta_time);
 
     if (!build_config.shipping and raylib.isKeyPressed(.f1)) {
         const debug_enabled = clay.isDebugModeEnabled();
@@ -138,9 +138,9 @@ fn processCommand(self: Self, command: clay.RenderCommand) void {
             // already allocated for this case.
             const text = raylib.textSubtext(string.chars[0..@intCast(string.length)], 0, string.length);
 
-            raylib.beginShaderMode(self._state.theme.font_shader);
+            raylib.beginShaderMode(self.state.theme.font_shader);
             raylib.drawTextEx(
-                self._state.theme.font.*,
+                self.state.theme.font.*,
                 text,
                 .init(bbox.x, bbox.y),
                 @floatFromInt(font_size),
@@ -275,7 +275,7 @@ fn onMeasureText(
     const ptr = user_data orelse return .{};
     const self: *Self = @ptrCast(@alignCast(ptr));
 
-    const size = self._state.theme.measureText(
+    const size = self.state.theme.measureText(
         text.str(),
         @floatFromInt(config.*.font_size),
         config.*.letter_spacing,

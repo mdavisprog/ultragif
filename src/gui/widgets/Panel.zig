@@ -46,7 +46,7 @@ pub fn draw(self: *Self, container: *Container) void {
             .padding = .axes(4, 4),
             .child_gap = 4,
         },
-        .background_color = container._state.theme.colors.background,
+        .background_color = container.state.theme.colors.background,
         .clip = .{
             .horizontal = true,
         },
@@ -66,7 +66,7 @@ pub fn draw(self: *Self, container: *Container) void {
 
         const element = clay.getElementData(id);
         const result = controls.handle.draggable(
-            container._state,
+            container.state,
             .fromLabel("Panel_Sizer"),
             .init(sizer_size * -0.5, 0.0),
             .fixed(sizer_size, element.bounding_box.height),
@@ -88,7 +88,7 @@ pub fn draw(self: *Self, container: *Container) void {
     }
     clay.closeElement();
 
-    controls.separator.vertical(container._state);
+    controls.separator.vertical(container.state);
 
     self.drawCategories(container);
 }
@@ -139,7 +139,7 @@ fn drawTitle(state: State, text: []const u8) void {
 }
 
 fn drawTexturesInfo(container: *Container) void {
-    const arena = container._state.getArenaAllocator();
+    const arena = container.state.getArenaAllocator();
 
     var bytes: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
@@ -147,7 +147,7 @@ fn drawTexturesInfo(container: *Container) void {
         bytes += texture.*.sheet.memorySize();
     }
 
-    drawTitle(container._state, "Textures");
+    drawTitle(container.state, "Textures");
 
     const memory: units.Memory = .fromBytes(bytes);
     const memory_text = formatString(
@@ -157,7 +157,7 @@ fn drawTexturesInfo(container: *Container) void {
     );
 
     const config: controls.text.Config = .{ .font_size = 18 };
-    controls.text.label(container._state, memory_text, config);
+    controls.text.label(container.state, memory_text, config);
 
     const current_texture = container.app.canvas_scene.texture;
 
@@ -165,8 +165,8 @@ fn drawTexturesInfo(container: *Container) void {
     textures = container.app.texture_cache.textures.valueIterator();
     while (textures.next()) |texture| {
         const selected = if (current_texture) |t| t == texture.* else false;
-        const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
-        controls.text.label(container._state, formatString(arena, "{s}", .{texture.*.name()}), config);
+        const clicked = controls.list.beginItem(container.state, .{ .selected = selected });
+        controls.text.label(container.state, formatString(arena, "{s}", .{texture.*.name()}), config);
         controls.list.endItem();
 
         if (clicked) {
@@ -177,14 +177,14 @@ fn drawTexturesInfo(container: *Container) void {
 }
 
 fn drawAnimations(container: *Container) void {
-    const arena = container._state.getArenaAllocator();
+    const arena = container.state.getArenaAllocator();
 
     const animations = container.app.canvas_scene.getObjects(arena, canvas.Animation) catch |err| {
         std.debug.panic("Failed to get animations from canvas. Error: {}", .{err});
     };
     defer arena.free(animations);
 
-    drawTitle(container._state, "Canvas");
+    drawTitle(container.state, "Canvas");
 
     const config: controls.text.Config = .{ .font_size = 18 };
     controls.list.begin();
@@ -192,8 +192,8 @@ fn drawAnimations(container: *Container) void {
         const selected = container.app.canvas_scene.isSelected(animation);
         const _animation = animation.as(canvas.Animation);
         const name = _animation.texture.name();
-        const clicked = controls.list.beginItem(container._state, .{ .selected = selected });
-        controls.text.label(container._state, formatString(arena, "{s}", .{name}), config);
+        const clicked = controls.list.beginItem(container.state, .{ .selected = selected });
+        controls.text.label(container.state, formatString(arena, "{s}", .{name}), config);
         controls.list.endItem();
 
         if (clicked) {
@@ -204,7 +204,7 @@ fn drawAnimations(container: *Container) void {
 }
 
 fn drawExport(container: *Container) void {
-    drawTitle(container._state, "Export");
+    drawTitle(container.state, "Export");
 
     const export_file_name: clay.ElementId = .fromLabel("Export_File_Name");
 
@@ -223,24 +223,24 @@ fn drawExport(container: *Container) void {
         .clip = .all(true),
     });
     {
-        controls.text.label(container._state, "File Name", .{ .text_alignment = .center });
-        controls.input.text(&container._state, export_file_name, "export");
+        controls.text.label(container.state, "File Name", .{ .text_alignment = .center });
+        controls.input.text(&container.state, export_file_name, "export");
     }
     clay.closeElement();
 
     // Export button
     const disabled = container.app.canvas_scene.numObjects(canvas.Animation) == 0;
     const export_result = controls.button.label(
-        container._state,
+        container.state,
         clay.idc("export"),
         .init("Export"),
         .{ .disabled = disabled },
     );
 
     if (export_result == .clicked) {
-        const export_data = container._state.getData(export_file_name).?;
+        const export_data = container.state.getData(export_file_name).?;
         if (export_data.input.len() == 0) {
-            export_data.input.setContents(container._state.getAllocator(), "export");
+            export_data.input.setContents(container.state.getAllocator(), "export");
         }
         container.app.exportScene(export_data.input.str());
     }
@@ -257,7 +257,7 @@ fn drawCategories(self: *Self, container: *Container) void {
             .padding = .axes(8, 8),
             .child_gap = 4,
         },
-        .background_color = container._state.theme.colors.background,
+        .background_color = container.state.theme.colors.background,
     });
     {
         const count = @typeInfo(Category).@"enum".fields.len;
@@ -271,13 +271,13 @@ fn drawCategories(self: *Self, container: *Container) void {
 fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void {
     const is_selected = self.category == category;
     const background_color: clay.Color = if (is_selected)
-        container._state.theme.colors.button_background
+        container.state.theme.colors.button_background
     else
         .blank;
 
     clay.openElement();
     clay.configureOpenElement(.{
-        .corner_radius = .all(container._state.theme.constants.button_corner_radius),
+        .corner_radius = .all(container.state.theme.constants.button_corner_radius),
         .background_color = background_color,
     });
 
@@ -293,9 +293,9 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
     };
 
     const result = controls.button.image(
-        container._state,
+        container.state,
         getCategoryId(category),
-        .{ .texture = container._state.theme.getIcon(icon) },
+        .{ .texture = container.state.theme.getIcon(icon) },
         .{ .background_color = .blank, .layout = layout },
     );
 

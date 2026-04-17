@@ -36,7 +36,7 @@ pub fn bounds(_: Self) raylib.Rectangle {
 
 pub fn draw(self: Self, container: *Container, width: f32) void {
     _ = self;
-    const state = container._state;
+    const state = container.state;
 
     clay.openElement();
     clay.configureOpenElement(.{
@@ -70,8 +70,8 @@ pub fn draw(self: Self, container: *Container, width: f32) void {
         });
 
         var background_color: clay.Color = switch (result) {
-            .hovered => container._state.theme.colors.button_hovered,
-            .pressed => container._state.theme.colors.button_active,
+            .hovered => container.state.theme.colors.button_hovered,
+            .pressed => container.state.theme.colors.button_active,
             else => .blank,
         };
 
@@ -85,12 +85,12 @@ pub fn draw(self: Self, container: *Container, width: f32) void {
         clay.openElement();
         clay.configureOpenElement(.{
             .image = .{
-                .image_data = container._state.theme.getIcon(.circle),
+                .image_data = container.state.theme.getIcon(.circle),
             },
             .background_color = background_color,
         });
 
-        controls.image.tint(container._state, container._state.theme.getIcon(.camera), .white);
+        controls.image.tint(container.state, container.state.theme.getIcon(.camera), .white);
 
         clay.closeElement();
 
