@@ -47,7 +47,7 @@ pub fn draw(self: Self, container: *Container) void {
             .padding = .axes(4, 0),
         },
         .clip = .all(true),
-        .border = .{ .color = .black, .width = .axes(1, 1) },
+        .border = .{ .color = .black, .width = .init(0, 0, 1, 0) },
     });
     {
         const status = self.status orelse "";

@@ -421,6 +421,10 @@ pub const BorderWidth = extern struct {
     bottom: u16 = 0,
     betweenChildren: u16 = 0,
 
+    pub fn init(left: u16, right: u16, top: u16, bottom: u16) BorderWidth {
+        return .{ .left = left, .right = right, .top = top, .bottom = bottom };
+    }
+
     pub fn axes(width: u16, height: u16) BorderWidth {
         return .{
             .left = width,
