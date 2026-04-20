@@ -42,6 +42,9 @@ blinking_cursor: BlinkingCursor = .{},
 /// Mapped data between an element and its data.
 control_data: ControlData,
 
+/// The current scroll bar that is being dragged.
+scroll_bar: clay.ElementId = .{},
+
 pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
         .theme = try .init(allocator),

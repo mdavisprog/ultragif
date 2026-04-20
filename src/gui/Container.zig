@@ -86,11 +86,14 @@ pub fn draw(self: *Self) void {
 
     const mouse_pos = raylib.getMousePosition();
     const mouse_down = raylib.isMouseButtonDown(.left);
-    const mouse_wheel = raylib.getMouseWheelMoveV();
 
     clay.setLayoutDimensions(.init(width, height));
     clay.setPointerState(.init(mouse_pos.x, mouse_pos.y), mouse_down);
-    clay.updateScrollContainers(true, .init(mouse_wheel.x, mouse_wheel.y), self._delta_time);
+    // Currently not using this function due to how clay handles scrolling. Clay uses the entire
+    // element content space to scroll the element either with mouse button or mouse wheel.
+    // We only want scrolling to occur with either mouse wheel or the scroll bar, so it is handled
+    // manually for now.
+    //clay.updateScrollContainers(...);
     clay.beginLayout();
 
     // The root element which covers the entire rendering viewport.

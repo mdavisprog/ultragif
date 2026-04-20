@@ -33,6 +33,8 @@ pub const Constants = struct {
     button_corner_radius: f32 = 0.25,
     separator_horizontal_size: f32 = 4.0,
     separator_vertical_size: f32 = 6.0,
+    scroll_bar_size: f32 = 10.0,
+    mouse_wheel_scroll_step: f32 = 8.0,
 };
 
 pub const Icon = enum(u16) {

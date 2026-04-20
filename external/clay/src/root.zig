@@ -32,6 +32,14 @@ pub const Dimensions = extern struct {
             .height = height,
         };
     }
+
+    pub fn sub(self: Dimensions, value: Dimensions) Dimensions {
+        return .init(self.width - value.width, self.height - value.height);
+    }
+
+    pub fn div(self: Dimensions, value: Dimensions) Dimensions {
+        return .init(self.width / value.width, self.height / value.height);
+    }
 };
 
 pub const BoundingBox = extern struct {
@@ -162,6 +170,10 @@ pub const ElementId = extern struct {
 
     pub fn fromLabel(comptime label: []const u8) ElementId {
         return idc(label);
+    }
+
+    pub fn fromString(string: []const u8) ElementId {
+        return id(string);
     }
 };
 
@@ -517,6 +529,14 @@ pub const RenderData = extern union {
     }
 };
 
+pub const ScrollContainerData = extern struct {
+    scroll_position: [*c]Vector2 = null,
+    scroll_container_dimensions: Dimensions = .{},
+    content_dimensions: Dimensions = .{},
+    config: ClipElementConfig = .{},
+    found: bool = false,
+};
+
 pub const ElementData = extern struct {
     bounding_box: BoundingBox = .zero,
     found: bool = false,
@@ -649,6 +669,10 @@ pub fn getPointerOverIds() ElementIdArray {
     return Clay_GetPointerOverIds();
 }
 
+pub fn getScrollContainerData(id_: ElementId) ScrollContainerData {
+    return Clay_GetScrollContainerData(id_);
+}
+
 pub fn setMeasureTextFunction(on_measure_text: ?MeasureTextFunction, user_data: ?*anyopaque) void {
     Clay_SetMeasureTextFunction(on_measure_text, user_data);
 }
@@ -747,6 +771,7 @@ extern fn Clay_Hovered() bool;
 extern fn Clay_OnHover(on_hover: ?HoverFunction, user_data: usize) void;
 extern fn Clay_PointerOver(element_id: ElementId) bool;
 extern fn Clay_GetPointerOverIds() ElementIdArray;
+extern fn Clay_GetScrollContainerData(id: ElementId) ScrollContainerData;
 extern fn Clay_SetMeasureTextFunction(on_measure_text: ?MeasureTextFunction, user_data: ?*anyopaque) void;
 extern fn Clay_RenderCommandArray_Get(array: [*c]RenderCommandArray, index: i32) [*c]RenderCommand;
 extern fn Clay_SetDebugModeEnabled(enabled: bool) void;
