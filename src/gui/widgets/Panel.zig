@@ -65,11 +65,14 @@ pub fn draw(self: *Self, container: *Container) void {
         }
 
         const element = clay.getElementData(id);
+        const handle_options: controls.handle.Options = .{
+            .offset = .init(sizer_size * -0.5, 0.0),
+            .sizing = .fixed(sizer_size, element.bounding_box.height),
+        };
         const result = controls.handle.draggable(
             container.state,
             .fromLabel("Panel_Sizer"),
-            .init(sizer_size * -0.5, 0.0),
-            .fixed(sizer_size, element.bounding_box.height),
+            handle_options,
         );
 
         switch (result.interaction) {

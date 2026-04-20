@@ -16,23 +16,35 @@ pub const Result = struct {
     interaction: Interaction = .none,
 };
 
+pub const Options = struct {
+    offset: clay.Vector2,
+    sizing: clay.Sizing,
+    background_color: ?clay.Color = null,
+    attach_point: clay.FloatingAttachPoints.Type = .left_top,
+};
+
 /// Handles are invisible elements that can be interacted with. This is useful for behaviors such
 /// as sizers for a panel.
 pub fn draggable(
     state: State,
     id: clay.ElementId,
-    offset: clay.Vector2,
-    sizing: clay.Sizing,
+    options: Options,
 ) Result {
+    const background_color: clay.Color = options.background_color orelse .blank;
+
     clay.openElement();
     clay.configureOpenElement(.{
         .id = id,
+        .background_color = background_color,
         .layout = .{
-            .sizing = sizing,
+            .sizing = options.sizing,
         },
         .floating = .{
             .attach_to = .parent,
-            .offset = .init(offset.x, offset.y),
+            .attach_points = .{
+                .parent = options.attach_point,
+            },
+            .offset = .init(options.offset.x, options.offset.y),
             .z_index = Theme.z_index.handle,
         },
     });
