@@ -76,16 +76,22 @@ pub fn bars(state: *State, parent: clay.ElementId, bar_type: BarType) void {
         const mouse_wheel = raylib.getMouseWheelMoveV();
         const min = scroll.scroll_container_dimensions.sub(scroll.content_dimensions);
         const step = state.theme.constants.mouse_wheel_scroll_step;
-        scroll.scroll_position.*.x = std.math.clamp(
-            scroll.scroll_position.*.x + mouse_wheel.x * step,
-            min.width,
-            0.0,
-        );
-        scroll.scroll_position.*.y = std.math.clamp(
-            scroll.scroll_position.*.y + mouse_wheel.y * step,
-            min.height,
-            0.0,
-        );
+
+        if (h_overflow) {
+            scroll.scroll_position.*.x = std.math.clamp(
+                scroll.scroll_position.*.x + mouse_wheel.x * step,
+                min.width,
+                0.0,
+            );
+        }
+
+        if (v_overflow) {
+            scroll.scroll_position.*.y = std.math.clamp(
+                scroll.scroll_position.*.y + mouse_wheel.y * step,
+                min.height,
+                0.0,
+            );
+        }
     }
 }
 
