@@ -1,24 +1,29 @@
 const clay = @import("clay");
 const State = @import("../State.zig");
 
+pub const Options = struct {
+    padding: u16 = 8,
+};
+
 const Type = enum {
     horizontal,
     vertical,
 };
 
-pub fn vertical(state: State) void {
-    container(state, .vertical);
+pub fn vertical(state: State, options: Options) void {
+    container(state, .vertical, options);
 }
 
-pub fn horizontal(state: State) void {
-    container(state, .horizontal);
+pub fn horizontal(state: State, options: Options) void {
+    container(state, .horizontal, options);
 }
 
-fn container(state: State, _type: Type) void {
+fn container(state: State, _type: Type, options: Options) void {
     const layout = getLayout(
         _type,
         state.theme.constants.separator_horizontal_size,
         state.theme.constants.separator_vertical_size,
+        options,
     );
 
     clay.openElement();
@@ -37,14 +42,14 @@ fn container(state: State, _type: Type) void {
     clay.closeElement();
 }
 
-fn getLayout(_type: Type, horizontal_size: f32, vertical_size: f32) clay.LayoutConfig {
+fn getLayout(_type: Type, horizontal_size: f32, vertical_size: f32, options: Options) clay.LayoutConfig {
     return switch (_type) {
         .horizontal => .{
             .sizing = .{
                 .width = .percent(1.0),
                 .height = .fixed(horizontal_size),
             },
-            .padding = .axes(8, 4),
+            .padding = .axes(options.padding, 4),
             .child_alignment = .init(.center, .center),
         },
         .vertical => .{
@@ -52,7 +57,7 @@ fn getLayout(_type: Type, horizontal_size: f32, vertical_size: f32) clay.LayoutC
                 .width = .fixed(vertical_size),
                 .height = .percent(1.0),
             },
-            .padding = .axes(4, 8),
+            .padding = .axes(4, options.padding),
             .child_alignment = .init(.center, .center),
         },
     };

@@ -91,7 +91,7 @@ pub fn draw(self: *Self, container: *Container) void {
     }
     clay.closeElement();
 
-    controls.separator.vertical(container.state);
+    controls.separator.vertical(container.state, .{});
 
     self.drawCategories(container);
 }
@@ -138,7 +138,7 @@ fn drawTitle(state: State, text: []const u8) void {
     }
     clay.closeElement();
 
-    controls.separator.horizontal(state);
+    controls.separator.horizontal(state, .{});
 }
 
 fn drawTexturesInfo(container: *Container) void {
