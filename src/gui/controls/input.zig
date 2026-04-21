@@ -6,6 +6,7 @@ const std = @import("std");
 
 pub const Options = struct {
     default_text: ?[]const u8 = null,
+    width: clay.Sizing.Axis = .percent(1.0),
 };
 
 pub const Data = struct {
@@ -75,7 +76,7 @@ pub const Data = struct {
 
 pub fn text(state: *State, id: clay.ElementId, options: Options) void {
     const font_size = state.theme.constants.font_size;
-    const height: f32 = @floatFromInt(font_size + 6);
+    const height = getHeight(state.*);
 
     clay.openElement();
 
@@ -90,7 +91,7 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
         .background_color = background_color,
         .layout = .{
             .sizing = .{
-                .width = .percent(1.0),
+                .width = options.width,
                 .height = .fixed(height),
             },
             .child_alignment = .{
@@ -101,6 +102,7 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
             .horizontal = true,
             .vertical = true,
         },
+        .corner_radius = .all(state.theme.constants.button_corner_radius),
     });
 
     const data = state.getData(id) orelse state.addData(id, .{
@@ -155,7 +157,7 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
         clay.configureOpenElement(.{
             .background_color = cursor_color,
             .layout = .{
-                .sizing = .fixed(2.0, height - 6.0),
+                .sizing = .fixed(2.0, @floatFromInt(font_size)),
             },
             .floating = .{
                 .attach_to = .parent,
@@ -166,6 +168,10 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
     }
 
     clay.closeElement();
+}
+
+pub fn getHeight(state: State) f32 {
+    return @floatFromInt(state.theme.constants.font_size + 6);
 }
 
 fn isKeyPressed(key: raylib.KeyboardKey) bool {
