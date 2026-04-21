@@ -4,6 +4,10 @@ const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
 
+pub const Options = struct {
+    default_text: ?[]const u8 = null,
+};
+
 pub const Data = struct {
     contents: std.ArrayListUnmanaged(u8) = .empty,
     cursor_pos: usize = 0,
@@ -69,7 +73,7 @@ pub const Data = struct {
     }
 };
 
-pub fn text(state: *State, id: clay.ElementId, default_text: []const u8) void {
+pub fn text(state: *State, id: clay.ElementId, options: Options) void {
     const font_size = state.theme.constants.font_size;
     const height: f32 = @floatFromInt(font_size + 6);
 
@@ -100,7 +104,7 @@ pub fn text(state: *State, id: clay.ElementId, default_text: []const u8) void {
     });
 
     const data = state.getData(id) orelse state.addData(id, .{
-        .input = .init(state.getAllocator(), default_text),
+        .input = .init(state.getAllocator(), options.default_text orelse ""),
     });
 
     if (is_focused) {
