@@ -4,9 +4,15 @@ const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
 
+pub const Format = enum {
+    text,
+    numbers,
+};
+
 pub const Options = struct {
     default_text: ?[]const u8 = null,
     width: clay.Sizing.Axis = .percent(1.0),
+    format: Format = .text,
 };
 
 pub const Data = struct {
@@ -136,7 +142,15 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
             const codepoint = raylib.getCharPressed();
             if (codepoint == 0) break;
             const utf8 = raylib.codepointToUTF8(codepoint);
-            data.input.insert(state.getAllocator(), utf8);
+
+            const valid = switch (options.format) {
+                .text => true,
+                .numbers => canAddNumber(data.input, utf8),
+            };
+
+            if (valid) {
+                data.input.insert(state.getAllocator(), utf8);
+            }
         }
 
         if (cursor_pos != data.input.cursor_pos) {
@@ -176,4 +190,25 @@ pub fn getHeight(state: State) f32 {
 
 fn isKeyPressed(key: raylib.KeyboardKey) bool {
     return raylib.isKeyPressed(key) or raylib.isKeyPressedRepeat(key);
+}
+
+fn isDigit(string: []const u8) bool {
+    if (string.len > 1) return false;
+    return std.ascii.isDigit(string[0]);
+}
+
+fn canAddNumber(data: Data, string: []const u8) bool {
+    const ch = string[0];
+
+    if (!isDigit(string) and ch != '.' and ch != '-') return false;
+
+    if (ch == '.') {
+        // If a valid index is returned, then another '.' character cannot be added.
+        if (std.mem.indexOf(u8, data.contents.items, ".")) |_| return false;
+    } else if (ch == '-') {
+        if (std.mem.indexOf(u8, data.contents.items, "-")) |_| return false;
+        if (data.cursor_pos != 0) return false;
+    }
+
+    return true;
 }
