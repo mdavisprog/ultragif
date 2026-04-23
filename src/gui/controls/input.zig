@@ -36,6 +36,7 @@ pub const Data = struct {
         self.contents.appendSlice(allocator, contents) catch |err| {
             std.debug.panic("Failed to set contents: {}", .{err});
         };
+        self.clampPosition();
     }
 
     fn init(allocator: std.mem.Allocator, contents: []const u8) Data {
@@ -78,6 +79,10 @@ pub const Data = struct {
     fn cursorStr(self: Data) []const u8 {
         return self.contents.items[0..self.cursor_pos];
     }
+
+    fn clampPosition(self: *Data) void {
+        self.cursor_pos = std.math.clamp(self.cursor_pos, 0, self.len());
+    }
 };
 
 pub fn text(state: *State, id: clay.ElementId, options: Options) bool {
@@ -119,6 +124,10 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) bool {
     if (is_focused) {
         const cursor_pos = data.input.cursor_pos;
 
+        if (state.isFocusedThisFrame(id)) {
+            data.input.moveCursorToEnd();
+        }
+
         if (isKeyPressed(.left)) {
             data.input.moveCursorBack();
         }
@@ -139,7 +148,7 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) bool {
             data.input.moveCursorToEnd();
         }
 
-        if (raylib.isKeyPressed(.enter)) {
+        if (raylib.isKeyPressed(.enter) or raylib.isKeyPressed(.kp_enter)) {
             result = true;
             state.clearFocused();
         }
@@ -201,16 +210,14 @@ pub fn getHeight(state: State) f32 {
 pub fn setContents(state: State, id: clay.ElementId, contents: []const u8) void {
     const data = state.getData(id) orelse return;
     if (data.* != .input) return;
-    data.input.contents.clearRetainingCapacity();
-    data.input.contents.appendSlice(state.getAllocator(), contents) catch |err| {
-        std.debug.panic("Failed to set contents for input control: {}", .{err});
-    };
+    data.input.setContents(state.getAllocator(), contents);
 }
 
 pub fn clearContents(state: State, id: clay.ElementId) void {
     const data = state.getData(id) orelse return;
     if (data.* != .input) return;
     data.input.contents.clearRetainingCapacity();
+    data.input.clampPosition();
 }
 
 pub fn getContents(state: State, id: clay.ElementId) ?[]const u8 {

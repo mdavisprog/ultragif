@@ -45,6 +45,9 @@ control_data: ControlData,
 /// The current scroll bar that is being dragged.
 scroll_bar: clay.ElementId = .{},
 
+/// Keep track of the focused items last frame to determine when a control was focused on the current frame.
+_last_frame_focused: [8]clay.ElementId = @splat(.{}),
+
 pub fn init(allocator: std.mem.Allocator) !Self {
     return .{
         .theme = try .init(allocator),
@@ -66,17 +69,15 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn isFocused(self: Self, element: clay.ElementId) bool {
-    for (self.focused) |focused| {
-        if (element.eql(focused)) {
-            return true;
-        }
-    }
-
-    return false;
+    return contains(&self.focused, element);
 }
 
 pub fn isFocusedTop(self: Self, element: clay.ElementId) bool {
     return self.focused[0].eql(element);
+}
+
+pub fn isFocusedThisFrame(self: Self, element: clay.ElementId) bool {
+    return contains(&self.focused, element) and !contains(&self._last_frame_focused, element);
 }
 
 pub fn clearFocused(self: *Self) void {
@@ -119,6 +120,8 @@ pub fn update(self: *Self, delta_time: f32) void {
 }
 
 fn updateFocused(self: *Self) void {
+    @memcpy(&self._last_frame_focused, &self.focused);
+
     const hovered = clay.getPointerOverIds();
     if (hovered.len() == 0) {
         return;
@@ -136,4 +139,14 @@ fn updateFocused(self: *Self) void {
         self.focused[i] = hovered.get(i);
         if (i == 0) break;
     }
+}
+
+fn contains(items: []const clay.ElementId, id: clay.ElementId) bool {
+    for (items) |item| {
+        if (item.eql(id)) {
+            return true;
+        }
+    }
+
+    return false;
 }
