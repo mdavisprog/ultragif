@@ -43,7 +43,7 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const 
         max.y = @max(max.y, bounds_max.y);
 
         const anim = animation.as(canvas.Animation);
-        max_time = @max(max_time, anim.max_frame_time);
+        max_time = @max(max_time, anim.totalTime());
     }
 
     var times: std.ArrayListUnmanaged(f32) = .empty;

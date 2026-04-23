@@ -8,18 +8,15 @@ const Texture = TextureCache.Texture;
 const Self = @This();
 
 texture: *Texture,
-max_frame_time: f32 = 0.0,
 
 pub fn init(texture: *Texture) Self {
     return .{
         .texture = texture,
-        .max_frame_time = texture.sheet.totalTime(),
     };
 }
 
 pub fn set(self: *Self, texture: *Texture) void {
     self.texture = texture;
-    self.max_frame_time = texture.sheet.totalTime();
     self.reset();
 }
 
@@ -28,7 +25,7 @@ pub fn getFrame(self: Self) raylib.Rectangle {
 }
 
 pub fn drawFrameTime(self: Self, position: raylib.Vector2, time: f32) void {
-    const local_time = @mod(time, self.max_frame_time);
+    const local_time = @mod(time, self.totalTime());
 
     var total_time: f32 = 0.0;
     var index: usize = 0;
@@ -69,4 +66,8 @@ pub fn draw(self: *Self, position: raylib.Vector2) void {
 
 pub fn getSize(self: *const Self) raylib.Vector2 {
     return self.texture.sheet.frame_size;
+}
+
+pub fn totalTime(self: Self) f32 {
+    return self.texture.sheet.totalTime();
 }

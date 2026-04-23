@@ -45,7 +45,6 @@ const Action = enum {
 const Timeline = struct {
     objects: std.ArrayListUnmanaged(*canvas.Object) = .empty,
     time: f32 = 0.0,
-    max: f32 = 0.0,
 
     fn removeObject(self: *Timeline, object: *const canvas.Object) bool {
         for (self.objects.items, 0..) |item, i| {
@@ -109,9 +108,7 @@ pub fn addAnimation(self: *Self, texture: *Texture) !*canvas.Object {
     if (self.timelines.getPtr(animation.texture)) |timeline| {
         try timeline.objects.append(self.allocator, result);
     } else {
-        try self.timelines.put(self.allocator, animation.texture, .{
-            .max = animation.texture.sheet.totalTime(),
-        });
+        try self.timelines.put(self.allocator, animation.texture, .{});
         try self.timelines.getPtr(animation.texture).?.objects.append(self.allocator, result);
     }
 
@@ -362,11 +359,15 @@ fn drawTexture(self: Self) void {
 }
 
 fn updateTimelines(self: Self, delta_time: f32) void {
-    var timelines = self.timelines.valueIterator();
-    while (timelines.next()) |timeline| {
+    var timelines = self.timelines.iterator();
+    while (timelines.next()) |entry| {
+        const texture = entry.key_ptr.*;
+        const max = texture.sheet.totalTime();
+
+        const timeline = entry.value_ptr;
         timeline.time += delta_time;
 
-        if (timeline.time > timeline.max) {
+        if (timeline.time > max) {
             timeline.time = 0.0;
         }
     }
