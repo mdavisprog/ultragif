@@ -227,7 +227,7 @@ fn drawExport(container: *Container) void {
     });
     {
         controls.text.label(container.state, "File Name", .{ .text_alignment = .center });
-        controls.input.text(&container.state, export_file_name, .{
+        _ = controls.input.text(&container.state, export_file_name, .{
             .default_text = "export",
         });
     }

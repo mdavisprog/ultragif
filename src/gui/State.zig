@@ -79,6 +79,10 @@ pub fn isFocusedTop(self: Self, element: clay.ElementId) bool {
     return self.focused[0].eql(element);
 }
 
+pub fn clearFocused(self: *Self) void {
+    self.focused = @splat(.{});
+}
+
 pub fn getAllocator(self: Self) std.mem.Allocator {
     return self.allocator;
 }

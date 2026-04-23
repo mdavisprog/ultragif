@@ -80,7 +80,7 @@ pub const Data = struct {
     }
 };
 
-pub fn text(state: *State, id: clay.ElementId, options: Options) void {
+pub fn text(state: *State, id: clay.ElementId, options: Options) bool {
     const font_size = state.theme.constants.font_size;
     const height = getHeight(state.*);
 
@@ -115,6 +115,7 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
         .input = .init(state.getAllocator(), options.default_text orelse ""),
     });
 
+    var result: bool = false;
     if (is_focused) {
         const cursor_pos = data.input.cursor_pos;
 
@@ -136,6 +137,11 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
 
         if (raylib.isKeyPressed(.end)) {
             data.input.moveCursorToEnd();
+        }
+
+        if (raylib.isKeyPressed(.enter)) {
+            result = true;
+            state.clearFocused();
         }
 
         while (true) {
@@ -182,10 +188,35 @@ pub fn text(state: *State, id: clay.ElementId, options: Options) void {
     }
 
     clay.closeElement();
+
+    return result;
 }
 
 pub fn getHeight(state: State) f32 {
     return @floatFromInt(state.theme.constants.font_size + 6);
+}
+
+/// This will make a copy of the given contents. Clay may have already received a pointer to the
+/// contents so the pointer should not change.
+pub fn setContents(state: State, id: clay.ElementId, contents: []const u8) void {
+    const data = state.getData(id) orelse return;
+    if (data.* != .input) return;
+    data.input.contents.clearRetainingCapacity();
+    data.input.contents.appendSlice(state.getAllocator(), contents) catch |err| {
+        std.debug.panic("Failed to set contents for input control: {}", .{err});
+    };
+}
+
+pub fn clearContents(state: State, id: clay.ElementId) void {
+    const data = state.getData(id) orelse return;
+    if (data.* != .input) return;
+    data.input.contents.clearRetainingCapacity();
+}
+
+pub fn getContents(state: State, id: clay.ElementId) ?[]const u8 {
+    const data = state.getData(id) orelse return null;
+    if (data.* != .input) return null;
+    return data.input.str();
 }
 
 fn isKeyPressed(key: raylib.KeyboardKey) bool {
