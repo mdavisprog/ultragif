@@ -16,6 +16,7 @@ const Self = @This();
 app: *App,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
+timeline: widgets.Timeline = .{},
 status_bar: widgets.StatusBar,
 state: State,
 _memory: []const u8,
@@ -129,6 +130,9 @@ pub fn draw(self: *Self) void {
             self.panel.draw(self);
         }
         clay.closeElement();
+
+        // Timeline
+        self.timeline.draw(self);
 
         // Status bar
         self.status_bar.draw(self);

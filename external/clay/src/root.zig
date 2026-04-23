@@ -63,6 +63,10 @@ pub const BoundingBox = extern struct {
         return self.x <= point.x and point.x <= self.x + self.width and
             self.y <= point.y and point.y <= self.y + self.height;
     }
+
+    pub fn size(self: BoundingBox) Vector2 {
+        return .init(self.width, self.height);
+    }
 };
 
 pub const Color = extern struct {
@@ -417,6 +421,14 @@ pub const ClipElementConfig = extern struct {
     vertical: bool = false,
     child_offset: Vector2 = .{},
 
+    pub fn init(horizontal: bool, vertical: bool, child_offset: Vector2) ClipElementConfig {
+        return .{
+            .horizontal = horizontal,
+            .vertical = vertical,
+            .child_offset = child_offset,
+        };
+    }
+
     pub fn all(clip: bool) ClipElementConfig {
         return .{ .horizontal = clip, .vertical = clip };
     }
@@ -437,12 +449,12 @@ pub const BorderWidth = extern struct {
         return .{ .left = left, .right = right, .top = top, .bottom = bottom };
     }
 
-    pub fn axes(width: u16, height: u16) BorderWidth {
+    pub fn axes(horizontal: u16, vertical: u16) BorderWidth {
         return .{
-            .left = width,
-            .right = width,
-            .top = height,
-            .bottom = height,
+            .left = horizontal,
+            .right = horizontal,
+            .top = vertical,
+            .bottom = vertical,
         };
     }
 };
