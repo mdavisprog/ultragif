@@ -10,9 +10,9 @@ const Texture = TextureCache.Texture;
 
 const Self = @This();
 
-scene: *const canvas.Scene,
+scene: *canvas.Scene,
 
-pub fn init(scene: *const canvas.Scene) Self {
+pub fn init(scene: *canvas.Scene) Self {
     return .{ .scene = scene };
 }
 
@@ -98,7 +98,7 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const 
     defer builder.deinit(allocator);
 
     // Reset and advance by each delay time from the gathered times above from all animations.
-    self.scene.resetAnimationTimes();
+    self.scene.resetElapsedTime();
 
     previous = 0.0;
     for (times.items, 0..) |time, i| {
@@ -160,17 +160,18 @@ fn exportSpriteSheet(
     try indexer.setTransparentColor(.init(204, 75, 202, 255));
 
     for (builder.frames, 0..) |frame, i| {
+        const bounds = builder.frame_bounds[frame.bounds_index];
         // The first frame should take up the whole screen.
         if (i == 0) {
-            gif_writer.logical_screen_desc.width = @intFromFloat(frame.bounds.width);
-            gif_writer.logical_screen_desc.height = @intFromFloat(frame.bounds.height);
+            gif_writer.logical_screen_desc.width = @intFromFloat(bounds.width);
+            gif_writer.logical_screen_desc.height = @intFromFloat(bounds.height);
         }
 
         // TODO: Only render the part of the image associated with a specific animation.
-        const width: u32 = @intFromFloat(frame.bounds.width);
-        const height: u32 = @intFromFloat(frame.bounds.height);
+        const width: u32 = @intFromFloat(bounds.width);
+        const height: u32 = @intFromFloat(bounds.height);
 
-        const frame_data = try builder.image.getRegionRect(allocator, frame.bounds);
+        const frame_data = try builder.image.getRegionRect(allocator, bounds);
         defer allocator.free(frame_data);
 
         const indexed_data = try indexer.indexImage(.initWithData(

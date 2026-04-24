@@ -145,7 +145,7 @@ fn drawTimelines(self: *Self, container: *Container) void {
 }
 
 fn drawTimeline(self: *Self, container: *Container, animation: *canvas.Animation) void {
-    for (animation.texture.sheet.frames, 0..) |frame, i| {
+    for (animation.frames, 0..) |frame, i| {
         self.drawFrame(container, frame, i, animation);
     }
 }
@@ -210,5 +210,5 @@ fn isFrameSelected(self: Self, animation: *const canvas.Animation, index: usize)
 
 fn setSelectedDelay(self: Self, delay: f32) void {
     const animation = self.selected_animation orelse return;
-    animation.texture.sheet.frames[self.selected_frame].delay = delay;
+    animation.frames[self.selected_frame].delay = delay;
 }

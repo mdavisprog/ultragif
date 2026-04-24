@@ -4,7 +4,7 @@ const raylib = @import("raylib");
 const std = @import("std");
 
 pub const Frame = struct {
-    bounds: raylib.Rectangle,
+    bounds_index: usize,
     delay: f32,
 };
 
@@ -13,6 +13,7 @@ pub const Frame = struct {
 pub const Builder = struct {
     image: Image,
     frames: []Frame,
+    frame_bounds: []const raylib.Rectangle,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -32,6 +33,7 @@ pub const Builder = struct {
 
         var position: raylib.Vector2 = .zero;
         var frames = try allocator.alloc(Frame, num_frames);
+        var frame_bounds = try allocator.alloc(raylib.Rectangle, num_frames);
         for (0..num_frames) |i| {
             // Advance into the y position if cursor has reached the end of the row.
             if (i > 0 and @mod(i, columns) == 0) {
@@ -40,14 +42,16 @@ pub const Builder = struct {
             }
 
             frames[i] = .{
-                .bounds = .init(
-                    position.x,
-                    position.y,
-                    @floatFromInt(width),
-                    @floatFromInt(height),
-                ),
+                .bounds_index = i,
                 .delay = 0.0,
             };
+
+            frame_bounds[i] = .init(
+                position.x,
+                position.y,
+                @floatFromInt(width),
+                @floatFromInt(height),
+            );
 
             position.x += @as(f32, @floatFromInt(width));
         }
@@ -55,12 +59,14 @@ pub const Builder = struct {
         return .{
             .image = image,
             .frames = frames,
+            .frame_bounds = frame_bounds,
         };
     }
 
     pub fn deinit(self: Builder, allocator: std.mem.Allocator) void {
         self.image.deinit(allocator);
         allocator.free(self.frames);
+        allocator.free(self.frame_bounds);
     }
 
     pub fn setFrameImage(self: *Builder, image: Image, frame_index: usize, delay: f32) !void {
@@ -71,22 +77,24 @@ pub const Builder = struct {
         var frame: *Frame = &self.frames[frame_index];
         frame.delay = delay;
 
-        if (@as(u32, @intFromFloat(frame.bounds.width)) != image.width) {
+        const bounds: raylib.Rectangle = self.frame_bounds[frame.bounds_index];
+        if (@as(u32, @intFromFloat(bounds.width)) != image.width) {
             return error.InvalidSize;
         }
 
-        if (@as(u32, @intFromFloat(frame.bounds.height)) != image.height) {
+        if (@as(u32, @intFromFloat(bounds.height)) != image.height) {
             return error.InvalidSize;
         }
 
-        try self.image.copy(image, @intFromFloat(frame.bounds.x), @intFromFloat(frame.bounds.y));
+        try self.image.copy(image, @intFromFloat(bounds.x), @intFromFloat(bounds.y));
     }
 };
 
 const Self = @This();
 
 texture: raylib.Texture,
-frames: []Frame,
+frames: []const Frame,
+frame_bounds: []const raylib.Rectangle,
 frame_size: raylib.Vector2 = .zero,
 
 pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
@@ -120,6 +128,7 @@ pub fn init(allocator: std.mem.Allocator, format: gif.Format) !Self {
     return .{
         .texture = texture,
         .frames = builder.frames,
+        .frame_bounds = builder.frame_bounds,
         .frame_size = .init(
             @floatFromInt(width),
             @floatFromInt(height),
@@ -133,6 +142,7 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     }
 
     allocator.free(self.frames);
+    allocator.free(self.frame_bounds);
 }
 
 pub fn memorySize(self: Self) usize {
