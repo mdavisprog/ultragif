@@ -76,7 +76,18 @@ fn drawTitleBar(self: *Self, state: *State) void {
         if (confirmed) {
             if (controls.input.getContents(state.*, delay_input_id)) |contents| {
                 if (std.fmt.parseFloat(f32, contents)) |delay| {
-                    self.setSelectedDelay(delay);
+                    const clamped = @max(0.01, delay);
+                    if (clamped != delay) {
+                        const text = std.fmt.allocPrint(
+                            state.getArenaAllocator(),
+                            "{}",
+                            .{clamped},
+                        ) catch |err| {
+                            std.debug.panic("Failed to clamp delay input: {}", .{err});
+                        };
+                        controls.input.setContents(state.*, delay_input_id, text);
+                    }
+                    self.setSelectedDelay(clamped);
                 } else |_| {}
             }
         }
