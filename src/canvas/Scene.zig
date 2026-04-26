@@ -35,6 +35,11 @@ pub const Callbacks = struct {
     }
 };
 
+pub const TimelineState = enum {
+    pause,
+    play,
+};
+
 const Action = enum {
     none,
     pan_camera,
@@ -60,6 +65,7 @@ draw_type: DrawType = .animations,
 allocator: std.mem.Allocator,
 callbacks: Callbacks,
 elapsed_time: f32 = 0.0,
+timeline_state: TimelineState = .play,
 
 pub fn init(allocator: std.mem.Allocator, callbacks: Callbacks) Self {
     return .{ .allocator = allocator, .callbacks = callbacks };
@@ -270,9 +276,14 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
         .texture => {},
     }
 
-    self.elapsed_time += delta_time;
-    if (self.elapsed_time > self.getMaxTime()) {
-        self.elapsed_time = 0.0;
+    switch (self.timeline_state) {
+        .pause => {},
+        .play => {
+            self.elapsed_time += delta_time;
+            if (self.elapsed_time > self.getMaxTime()) {
+                self.elapsed_time = 0.0;
+            }
+        },
     }
 }
 

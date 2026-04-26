@@ -37,13 +37,14 @@ pub fn draw(self: *Self, container: *Container) void {
         .border = .{ .color = .black, .width = .{ .top = 1 } },
     });
     {
-        self.drawTitleBar(&container.state);
+        self.drawTitleBar(container);
         self.drawTimelineView(container);
     }
     clay.closeElement();
 }
 
-fn drawTitleBar(self: *Self, state: *State) void {
+fn drawTitleBar(self: *Self, container: *Container) void {
+    const state = &container.state;
     const font_size: u16 = 20;
 
     // Horizontal bar for the title and other controls
@@ -56,7 +57,7 @@ fn drawTitleBar(self: *Self, state: *State) void {
             .child_alignment = .{
                 .y = .center,
             },
-            .child_gap = 6,
+            .child_gap = 12,
             .padding = .axes(2, 4),
         },
         .border = .{
@@ -67,6 +68,10 @@ fn drawTitleBar(self: *Self, state: *State) void {
     {
         controls.text.label(state.*, "Timeline", .{ .font_size = font_size });
         controls.separator.vertical(state.*, .{ .padding = 1 });
+
+        drawControls(container);
+        controls.separator.vertical(state.*, .{ .padding = 1 });
+
         controls.text.label(state.*, "Delay", .{ .font_size = font_size });
         const confirmed = controls.input.text(state, delay_input_id, .{
             .width = .fixed(100.0),
@@ -90,6 +95,45 @@ fn drawTitleBar(self: *Self, state: *State) void {
                     self.setSelectedDelay(clamped);
                 } else |_| {}
             }
+        }
+    }
+    clay.closeElement();
+}
+
+fn drawControls(container: *Container) void {
+    const button_id: clay.ElementId = .fromLabel("PausePlayButton");
+
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .child_gap = 4,
+        },
+    });
+    {
+        const timeline_state = container.app.canvas_scene.timeline_state;
+        const config: controls.button.Config = .{
+            .layout = .{
+                .sizing = .{ .width = .fit(0.0, 0.0) },
+            },
+        };
+
+        const texture = switch (timeline_state) {
+            .pause => container.state.theme.getIcon(.play),
+            .play => container.state.theme.getIcon(.pause),
+        };
+
+        const result = controls.button.image(
+            container.state,
+            button_id,
+            .{ .texture = texture },
+            config,
+        );
+
+        if (result == .clicked) {
+            container.app.canvas_scene.timeline_state = switch (timeline_state) {
+                .pause => .play,
+                .play => .pause,
+            };
         }
     }
     clay.closeElement();
