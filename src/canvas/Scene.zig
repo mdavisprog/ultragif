@@ -303,6 +303,17 @@ pub fn advanceTime(self: *Self, time: f32) void {
     self.elapsed_time += time;
 }
 
+pub fn getMaxTime(self: Self) f32 {
+    var result: f32 = 0.0;
+
+    for (self.animations.items) |animation| {
+        const anim = animation.as(canvas.Animation);
+        result = @max(result, anim.totalTime());
+    }
+
+    return result;
+}
+
 fn drawInternal(self: Self, background_color: raylib.Color) void {
     self.camera.begin();
     defer self.camera.end();
@@ -343,15 +354,4 @@ fn drawAnimations(self: Self) void {
 fn drawTexture(self: Self) void {
     const texture = self.texture orelse return;
     raylib.drawTextureV(texture.sheet.texture, .zero, .white);
-}
-
-fn getMaxTime(self: Self) f32 {
-    var result: f32 = 0.0;
-
-    for (self.animations.items) |animation| {
-        const anim = animation.as(canvas.Animation);
-        result = @max(result, anim.totalTime());
-    }
-
-    return result;
 }

@@ -39,6 +39,7 @@ pub const Constants = struct {
 
 pub const Icon = enum(u16) {
     animated_images,
+    arrow_down,
     camera,
     circle,
     export_,
@@ -56,6 +57,7 @@ pub const Icons = struct {
 
     const svgs = [_]SVG{
         .{ .icon = .animated_images, .data = @embedFile("../assets/icons/animated_images.svg") },
+        .{ .icon = .arrow_down, .data = @embedFile("../assets/icons/arrow_down.svg") },
         .{ .icon = .camera, .data = @embedFile("../assets/icons/camera.svg") },
         .{ .icon = .circle, .data = @embedFile("../assets/icons/circle.svg") },
         .{ .icon = .export_, .data = @embedFile("../assets/icons/export.svg") },

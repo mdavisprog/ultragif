@@ -154,9 +154,74 @@ fn drawTimelineView(self: *Self, container: *Container) void {
         .clip = .init(true, true, clay.getScrollOffset()),
     });
     {
+        self.drawScrubber(container);
         self.drawTimelines(container);
 
         controls.scroll.bars(&container.state, view_id, .both);
+    }
+    clay.closeElement();
+}
+
+fn drawScrubber(self: *Self, container: *Container) void {
+    const scrubber_bg_id: clay.ElementId = .fromLabel("ScrubberBackground");
+    const scrubber_id: clay.ElementId = .fromLabel("Scrubber");
+
+    _ = self;
+
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .id = scrubber_bg_id,
+        .background_color = .initu8(32, 32, 32, 255),
+        .layout = .{
+            .sizing = .{
+                .width = .grow(0.0, 0.0),
+                .height = .fixed(20.0),
+            },
+        },
+    });
+    {
+        const max_time = container.app.canvas_scene.getMaxTime();
+        const max_offset = max_time / segment_time * length_per_segment;
+
+        const hovered = clay.pointerOver(scrubber_bg_id) or clay.pointerOver(scrubber_id);
+        if (hovered and raylib.isMouseButtonDown(.left)) {
+            const scroll_data = clay.getScrollContainerData(view_id);
+
+            container.app.canvas_scene.timeline_state = .pause;
+            const mouse_position = raylib.getMousePosition();
+
+            const offset = mouse_position.x - scroll_data.scroll_position.*.x;
+            const ratio: f32 = @min(offset / max_offset, 1.0);
+            const elapsed_time = ratio * max_time;
+            container.app.canvas_scene.elapsed_time = elapsed_time;
+        }
+
+        const elapsed_time = container.app.canvas_scene.elapsed_time;
+        const arrow = container.state.theme.getIcon(.arrow_down);
+        const half_width: f32 = @floatFromInt(@divTrunc(arrow.width, 2));
+        const offset = (elapsed_time / max_time) * max_offset;
+
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .id = scrubber_id,
+            .layout = .{
+                .child_alignment = .{
+                    .y = .center,
+                },
+            },
+            .floating = .{
+                .attach_to = .parent,
+                .offset = .init(offset - half_width, 0.0),
+            },
+        });
+        {
+            controls.image.tint(
+                container.state,
+                container.state.theme.getIcon(.arrow_down),
+                .white,
+            );
+        }
+        clay.closeElement();
     }
     clay.closeElement();
 }
@@ -177,7 +242,6 @@ fn drawTimelines(self: *Self, container: *Container) void {
                     .width = .grow(0.0, 0.0),
                     .height = .fixed(10),
                 },
-                .child_gap = @intFromFloat(segment_gap),
             },
         });
         {
