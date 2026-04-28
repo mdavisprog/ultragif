@@ -108,6 +108,18 @@ pub fn addData(self: *Self, id: clay.ElementId, data: controls.Data) *controls.D
     return self.control_data.getPtr(id).?;
 }
 
+pub fn formatStringTemp(self: *Self, comptime format: []const u8, args: anytype) []const u8 {
+    const result = std.fmt.allocPrint(
+        self.getArenaAllocator(),
+        format,
+        args,
+    ) catch |err| {
+        std.debug.panic("Failed to allocate temporary string: {}", .{err});
+    };
+
+    return result;
+}
+
 pub fn update(self: *Self, delta_time: f32) void {
     self.blinking_cursor.time += delta_time;
     if (self.blinking_cursor.time >= BlinkingCursor.max_time) {

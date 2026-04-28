@@ -142,8 +142,6 @@ fn drawTitle(state: State, text: []const u8) void {
 }
 
 fn drawTexturesInfo(container: *Container) void {
-    const arena = container.state.getArenaAllocator();
-
     var bytes: usize = 0;
     var textures = container.app.texture_cache.textures.valueIterator();
     while (textures.next()) |texture| {
@@ -153,8 +151,7 @@ fn drawTexturesInfo(container: *Container) void {
     drawTitle(container.state, "Textures");
 
     const memory: units.Memory = .fromBytes(bytes);
-    const memory_text = formatString(
-        arena,
+    const memory_text = container.state.formatStringTemp(
         "Memory: {} {s}",
         .{ memory.amount, memory.symbolString() },
     );
@@ -169,7 +166,8 @@ fn drawTexturesInfo(container: *Container) void {
     while (textures.next()) |texture| {
         const selected = if (current_texture) |t| t == texture.* else false;
         const clicked = controls.list.beginItem(container.state, .{ .selected = selected });
-        controls.text.label(container.state, formatString(arena, "{s}", .{texture.*.name()}), config);
+        const label = container.state.formatStringTemp("{s}", .{texture.*.name()});
+        controls.text.label(container.state, label, config);
         controls.list.endItem();
 
         if (clicked) {
@@ -196,7 +194,8 @@ fn drawAnimations(container: *Container) void {
         const _animation = animation.as(canvas.Animation);
         const name = _animation.texture.name();
         const clicked = controls.list.beginItem(container.state, .{ .selected = selected });
-        controls.text.label(container.state, formatString(arena, "{s}", .{name}), config);
+        const label = container.state.formatStringTemp("{s}", .{name});
+        controls.text.label(container.state, label, config);
         controls.list.endItem();
 
         if (clicked) {
@@ -323,12 +322,4 @@ fn getCategoryId(category: Category) clay.ElementId {
         .texture => clay.idc(prefix ++ "texture"),
         .export_ => clay.idc(prefix ++ "export"),
     };
-}
-
-fn formatString(allocator: std.mem.Allocator, comptime format: []const u8, args: anytype) []const u8 {
-    const result = std.fmt.allocPrint(allocator, format, args) catch |err| {
-        std.debug.panic("Failed to allocate string. Error: {}", .{err});
-    };
-
-    return result;
 }
