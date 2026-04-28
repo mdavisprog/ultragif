@@ -2,12 +2,13 @@ const canvas = @import("../../canvas/root.zig");
 const clay = @import("clay");
 const Container = @import("../Container.zig");
 const controls = @import("../controls/root.zig");
+const input = @import("../../input.zig");
 const raylib = @import("raylib");
 const SpriteSheet = @import("../../SpriteSheet.zig");
 const State = @import("../State.zig");
 const std = @import("std");
 
-const id: clay.ElementId = .fromLabel("Timeline");
+const timeline_id: clay.ElementId = .fromLabel("Timeline");
 const view_id: clay.ElementId = .fromLabel("TimelineView");
 const delay_input_id: clay.ElementId = .fromLabel("DelayInput");
 const segment_gap: f32 = 2.0;
@@ -24,7 +25,7 @@ pub fn draw(self: *Self, container: *Container) void {
     // Main container for timeline widget.
     clay.openElement();
     clay.configureOpenElement(.{
-        .id = id,
+        .id = timeline_id,
         .background_color = container.state.theme.colors.background,
         .layout = .{
             .sizing = .{
@@ -80,19 +81,11 @@ fn drawTitleBar(self: *Self, container: *Container) void {
 
         if (confirmed) {
             if (controls.input.getContents(state.*, delay_input_id)) |contents| {
-                if (std.fmt.parseFloat(f32, contents)) |delay| {
+                const trimmed = std.mem.trim(u8, contents, " ");
+                if (std.fmt.parseFloat(f32, trimmed)) |delay| {
                     const clamped = @max(0.01, delay);
-                    if (clamped != delay) {
-                        const text = std.fmt.allocPrint(
-                            state.getArenaAllocator(),
-                            "{}",
-                            .{clamped},
-                        ) catch |err| {
-                            std.debug.panic("Failed to clamp delay input: {}", .{err});
-                        };
-                        controls.input.setContents(state.*, delay_input_id, text);
-                    }
                     self.setSelectedDelay(clamped);
+                    setDelayContents(container, clamped);
                 } else |_| {}
             }
         }
@@ -233,7 +226,7 @@ fn drawTimelines(self: *Self, container: *Container) void {
         std.debug.panic("Failed to retrieve animations from canvas: {}", .{err});
     };
 
-    for (objects) |object| {
+    for (objects, 0..) |object, i| {
         // Container for all timeline segments.
         clay.openElement();
         clay.configureOpenElement(.{
@@ -246,15 +239,16 @@ fn drawTimelines(self: *Self, container: *Container) void {
         });
         {
             const animation = object.as(canvas.Animation);
-            self.drawTimeline(container, animation);
+            self.drawTimeline(container, animation, i);
         }
         clay.closeElement();
     }
 }
 
-fn drawTimeline(self: *Self, container: *Container, animation: *canvas.Animation) void {
+fn drawTimeline(self: *Self, container: *Container, animation: *canvas.Animation, index: usize) void {
     for (animation.frames, 0..) |frame, i| {
-        self.drawFrame(container, frame, i, animation);
+        const string = container.state.formatStringTemp("Animation_{}_Frame", .{index});
+        self.drawFrame(container, frame, i, animation, .fromStringOffset(string, @intCast(i)));
     }
 }
 
@@ -264,6 +258,7 @@ fn drawFrame(
     frame: SpriteSheet.Frame,
     index: usize,
     animation: *canvas.Animation,
+    id: clay.ElementId,
 ) void {
     const segments = frame.delay / segment_time;
 
@@ -278,16 +273,7 @@ fn drawFrame(
         if (raylib.isMouseButtonPressed(.left)) {
             self.selected_animation = animation;
             self.selected_frame = index;
-
-            const contents = std.fmt.allocPrint(
-                container.state.getArenaAllocator(),
-                "{}",
-                .{frame.delay},
-            ) catch |err| {
-                std.debug.panic("Failed to convert delay to string: {}", .{err});
-            };
-
-            controls.input.setContents(container.state, delay_input_id, contents);
+            setDelayContents(container, frame.delay);
         }
     }
 
@@ -304,6 +290,33 @@ fn drawFrame(
             .width = .axes(1, 1),
         },
     });
+    {
+        const result = controls.handle.draggable(container.state, id, .{
+            .attach_point = .right_top,
+            .sizing = .fixed(length_per_segment, length_per_segment),
+            .offset = .init(length_per_segment * -0.5, 0.0),
+        });
+
+        switch (result.interaction) {
+            .hovering => {
+                input.mouse.setCursor(.resize_ew);
+            },
+            .dragging => {
+                self.selected_animation = animation;
+                self.selected_frame = index;
+
+                input.mouse.setCursor(.resize_ew);
+
+                if (result.mouse_delta.x != 0.0) {
+                    const delay = animation.frames[index].delay;
+                    const delta = result.mouse_delta.x * (segment_time / length_per_segment);
+                    animation.frames[index].delay = @max(delay + delta, 0.01);
+                    setDelayContents(container, animation.frames[index].delay);
+                }
+            },
+            else => {},
+        }
+    }
     clay.closeElement();
 }
 
@@ -319,4 +332,16 @@ fn isFrameSelected(self: Self, animation: *const canvas.Animation, index: usize)
 fn setSelectedDelay(self: Self, delay: f32) void {
     const animation = self.selected_animation orelse return;
     animation.frames[self.selected_frame].delay = delay;
+}
+
+fn setDelayContents(container: *Container, delay: f32) void {
+    const contents = std.fmt.allocPrint(
+        container.state.getArenaAllocator(),
+        "{d:6.2}",
+        .{delay},
+    ) catch |err| {
+        std.debug.panic("Failed to convert delay to string: {}", .{err});
+    };
+
+    controls.input.setContents(container.state, delay_input_id, contents);
 }

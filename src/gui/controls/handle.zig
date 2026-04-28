@@ -17,8 +17,8 @@ pub const Result = struct {
 };
 
 pub const Options = struct {
-    offset: clay.Vector2,
     sizing: clay.Sizing,
+    offset: clay.Vector2 = .zero,
     background_color: ?clay.Color = null,
     attach_point: clay.FloatingAttachPoints.Type = .left_top,
 };
