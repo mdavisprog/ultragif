@@ -8,6 +8,12 @@ const SpriteSheet = @import("../../SpriteSheet.zig");
 const State = @import("../State.zig");
 const std = @import("std");
 
+const Interaction = enum {
+    none,
+    scrubber,
+    frames,
+};
+
 const timeline_id: clay.ElementId = .fromLabel("Timeline");
 const view_id: clay.ElementId = .fromLabel("TimelineView");
 const delay_input_id: clay.ElementId = .fromLabel("DelayInput");
@@ -20,8 +26,13 @@ const Self = @This();
 
 selected_animation: ?*canvas.Animation = null,
 selected_frame: usize = 0,
+interaction: Interaction = .none,
 
 pub fn draw(self: *Self, container: *Container) void {
+    if (raylib.isMouseButtonReleased(.left)) {
+        self.interaction = .none;
+    }
+
     // Main container for timeline widget.
     clay.openElement();
     clay.configureOpenElement(.{
@@ -159,8 +170,6 @@ fn drawScrubber(self: *Self, container: *Container) void {
     const scrubber_bg_id: clay.ElementId = .fromLabel("ScrubberBackground");
     const scrubber_id: clay.ElementId = .fromLabel("Scrubber");
 
-    _ = self;
-
     clay.openElement();
     clay.configureOpenElement(.{
         .id = scrubber_bg_id,
@@ -177,7 +186,11 @@ fn drawScrubber(self: *Self, container: *Container) void {
         const max_offset = max_time / segment_time * length_per_segment;
 
         const hovered = clay.pointerOver(scrubber_bg_id) or clay.pointerOver(scrubber_id);
-        if (hovered and raylib.isMouseButtonDown(.left)) {
+        if (hovered and raylib.isMouseButtonPressed(.left)) {
+            self.interaction = .scrubber;
+        }
+
+        if (self.interaction == .scrubber) {
             const scroll_data = clay.getScrollContainerData(view_id);
 
             container.app.canvas_scene.timeline_state = .pause;
@@ -264,10 +277,20 @@ fn drawFrame(
 
     clay.openElement();
 
-    const border_color: clay.Color = if (clay.hovered() or self.isFrameSelected(animation, index))
-        .initu8(255, 255, 0, 255)
-    else
-        .black;
+    const border_color: clay.Color = blk: {
+        const highlight_color: clay.Color = .initu8(255, 255, 0, 255);
+
+        if (self.interaction == .frames) {
+            input.mouse.setCursor(.resize_ew);
+            break :blk if (self.isFrameSelected(animation, index)) highlight_color else .black;
+        }
+
+        if (clay.hovered() or self.isFrameSelected(animation, index)) {
+            break :blk .initu8(255, 255, 0, 255);
+        }
+
+        break :blk .black;
+    };
 
     if (clay.hovered()) {
         if (raylib.isMouseButtonPressed(.left)) {
@@ -302,10 +325,9 @@ fn drawFrame(
                 input.mouse.setCursor(.resize_ew);
             },
             .dragging => {
+                self.interaction = .frames;
                 self.selected_animation = animation;
                 self.selected_frame = index;
-
-                input.mouse.setCursor(.resize_ew);
 
                 if (result.mouse_delta.x != 0.0) {
                     const delay = animation.frames[index].delay;
