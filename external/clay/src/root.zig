@@ -179,6 +179,10 @@ pub const ElementId = extern struct {
     pub fn fromString(string: []const u8) ElementId {
         return id(string);
     }
+
+    pub fn fromStringOffset(string: []const u8, offset: u32) ElementId {
+        return idLocal(string, offset);
+    }
 };
 
 pub const ElementIdArray = extern struct {
@@ -730,6 +734,15 @@ pub fn id(label: []const u8) ElementId {
     return hashString(str, 0, 0);
 }
 
+pub fn idLocal(label: []const u8, index: u32) ElementId {
+    const str: String = .{
+        .is_statically_allocated = false,
+        .length = @intCast(label.len),
+        .chars = label.ptr,
+    };
+    return hashString(str, index, @intCast(Clay__GetParentElementId()));
+}
+
 pub fn idc(comptime label: []const u8) ElementId {
     const str: String = .{
         .is_statically_allocated = true,
@@ -793,3 +806,4 @@ extern fn Clay__CloseElement() void;
 extern fn Clay__ConfigureOpenElement(config: ElementDeclaration) void;
 extern fn Clay__OpenTextElement(text: String, text_config: [*c]TextElementConfig) void;
 extern fn Clay__StoreTextElementConfig(config: TextElementConfig) [*c]TextElementConfig;
+extern fn Clay__GetParentElementId() c_uint;
