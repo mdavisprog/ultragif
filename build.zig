@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) !void {
             },
         }),
     });
-    exe.linkLibrary(raylib.artifact("raylib"));
+    exe.root_module.linkLibrary(raylib.artifact("raylib"));
 
     addOptions(b, exe.root_module);
 

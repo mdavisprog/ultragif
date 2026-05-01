@@ -25,8 +25,9 @@ viewport: Viewport = .{},
 texture_cache: TextureCache,
 allocator: std.mem.Allocator,
 export_settings: ExportSettings = .{},
+io: std.Io,
 
-pub fn init(allocator: std.mem.Allocator) !*Self {
+pub fn init(io: std.Io, allocator: std.mem.Allocator) !*Self {
     const result = try allocator.create(Self);
     const canvas_scene = try allocator.create(canvas.Scene);
 
@@ -40,6 +41,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .gui_container = try .create(allocator, result),
         .texture_cache = .init(),
         .allocator = allocator,
+        .io = io,
     };
     return result;
 }
@@ -83,7 +85,7 @@ pub fn update(self: *Self, delta_time: f32) !void {
         const paths = files.getPaths();
         for (paths) |path| {
             const _path = std.mem.span(path);
-            const texture = self.texture_cache.loadGIF(self.allocator, _path) catch {
+            const texture = self.texture_cache.loadGIF(self.io, self.allocator, _path) catch {
                 continue;
             };
 
@@ -102,7 +104,7 @@ pub fn draw(self: *Self) !void {
         self.export_settings.export_scene = false;
 
         const exporter: Exporter = .init(self.canvas_scene);
-        const success = try exporter.exportScene(self.allocator, self.export_settings.file_name);
+        const success = try exporter.exportScene(self.io, self.allocator, self.export_settings.file_name);
 
         if (success) {
             try self.gui_container.status_bar.setStatus(

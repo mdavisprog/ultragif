@@ -1038,7 +1038,7 @@ pub const Format = struct {
             switch (block) {
                 .graphic_rendering => |graphic| {
                     switch (graphic) {
-                        .image_descriptor => |_| {
+                        .image_descriptor => {
                             result += 1;
                         },
                         else => {},
@@ -1228,12 +1228,14 @@ pub const Error = error{
 pub const Writer = struct {
     logical_screen_desc: LogicalScreenDescriptor,
     blocks: std.ArrayListUnmanaged(Block) = .empty,
+    io: std.Io,
     allocator: std.mem.Allocator,
     image_count: usize = 0,
 
-    pub fn init(allocator: std.mem.Allocator) !Writer {
+    pub fn init(io: std.Io, allocator: std.mem.Allocator) !Writer {
         return .{
             .logical_screen_desc = std.mem.zeroes(LogicalScreenDescriptor),
+            .io = io,
             .allocator = allocator,
         };
     }
@@ -1334,11 +1336,11 @@ pub const Writer = struct {
     pub fn save(self: *Writer, path: []const u8) !void {
         try self.blocks.append(self.allocator, .initTrailer());
 
-        const file = try std.fs.createFileAbsolute(path, .{});
-        defer file.close();
+        const file = try std.Io.Dir.createFileAbsolute(self.io, path, .{});
+        defer file.close(self.io);
 
         var buffer: [1024]u8 = undefined;
-        var writer = file.writer(&buffer);
+        var writer = file.writer(self.io, &buffer);
 
         try self.write(&writer.interface);
     }
@@ -1363,12 +1365,12 @@ pub const Writer = struct {
 };
 
 /// Loads the GIF file at the given path. 'path' should be absolute.
-pub fn load(allocator: std.mem.Allocator, path: []const u8) !Format {
-    var file = try std.fs.openFileAbsolute(path, .{});
-    defer file.close();
+pub fn load(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Format {
+    var file = try std.Io.Dir.openFileAbsolute(io, path, .{});
+    defer file.close(io);
 
     var buffer: [4096]u8 = undefined;
-    var reader = file.reader(&buffer);
+    var reader = file.reader(io, &buffer);
 
     var result: Format = undefined;
 

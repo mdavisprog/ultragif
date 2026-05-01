@@ -1,7 +1,7 @@
 .{
     .name = .ultragif,
     .version = "0.2.0",
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0",
     .fingerprint = 0xc9c3345e359116,
     .dependencies = .{
         .clay = .{ .path = "external/clay" },

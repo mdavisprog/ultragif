@@ -28,12 +28,12 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     self.textures.deinit(allocator);
 }
 
-pub fn loadGIF(self: *Self, allocator: std.mem.Allocator, path: []const u8) !*Texture {
+pub fn loadGIF(self: *Self, io: std.Io, allocator: std.mem.Allocator, path: []const u8) !*Texture {
     if (self.textures.get(path)) |texture| {
         return texture;
     }
 
-    const format = try gif.load(allocator, path);
+    const format = try gif.load(io, allocator, path);
     defer format.deinit(allocator);
 
     const sheet: SpriteSheet = try .init(allocator, format);

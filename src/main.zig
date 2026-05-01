@@ -11,16 +11,10 @@ const version = @import("version");
 
 pub const std_options = log.options;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     std.log.info("Starting up UltraGIF version {s}...", .{version.full});
 
-    var heap = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer _ = heap.deinit();
-
-    const allocator = heap.allocator();
-
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const allocator = init.gpa;
 
     log.init(!build_config.shipping);
 
@@ -32,7 +26,7 @@ pub fn main() !void {
     raylib.setWindowState(window_flags);
     raylib.setTargetFPS(60);
 
-    const app: *App = try .init(allocator);
+    const app: *App = try .init(init.io, allocator);
     defer {
         app.deinit();
         allocator.destroy(app);

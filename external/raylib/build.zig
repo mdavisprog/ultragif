@@ -32,7 +32,7 @@ fn createEmsdkStep(b: *std.Build, emsdk: *std.Build.Dependency) *std.Build.Step.
 
 fn emSdkSetupStep(b: *std.Build, emsdk: *std.Build.Dependency) !?*std.Build.Step.Run {
     const dot_emsc_path = emsdk.path(".emscripten").getPath(b);
-    const dot_emsc_exists = !std.meta.isError(std.fs.accessAbsolute(dot_emsc_path, .{}));
+    const dot_emsc_exists = !std.meta.isError(std.Io.Dir.accessAbsolute(b.graph.io, dot_emsc_path, .{}));
 
     if (!dot_emsc_exists) {
         const emsdk_install = createEmsdkStep(b, emsdk);
@@ -61,9 +61,9 @@ const config_h_flags = outer: {
         if (std.mem.startsWith(u8, line, "//")) continue;
         if (std.mem.startsWith(u8, line, "#if")) continue;
 
-        var flag = std.mem.trimLeft(u8, line, " \t"); // Trim whitespace
+        var flag = std.mem.trimStart(u8, line, " \t"); // Trim whitespace
         flag = flag["#define ".len - 1 ..]; // Remove #define
-        flag = std.mem.trimLeft(u8, flag, " \t"); // Trim whitespace
+        flag = std.mem.trimStart(u8, flag, " \t"); // Trim whitespace
         flag = flag[0 .. std.mem.indexOf(u8, flag, " ") orelse continue]; // Flag is only one word, so capture till space
         flag = "-D" ++ flag; // Prepend with -D
 
@@ -144,13 +144,13 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
             .root_module = b.createModule(.{
                 .target = target,
                 .optimize = optimize,
+                .link_libc = true,
             }),
         });
-    raylib.linkLibC();
 
     // No GLFW required on PLATFORM_DRM
     if (options.platform != .drm) {
-        raylib.addIncludePath(b.path("src/external/glfw/include"));
+        raylib.root_module.addIncludePath(b.path("src/external/glfw/include"));
     }
 
     var c_source_files = try std.ArrayList([]const u8).initCapacity(b.allocator, 2);
@@ -179,9 +179,9 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     switch (target.result.os.tag) {
         .windows => {
             try c_source_files.append(b.allocator, "src/rglfw.c");
-            raylib.linkSystemLibrary("winmm");
-            raylib.linkSystemLibrary("gdi32");
-            raylib.linkSystemLibrary("opengl32");
+            raylib.root_module.linkSystemLibrary("winmm", .{});
+            raylib.root_module.linkSystemLibrary("gdi32", .{});
+            raylib.root_module.linkSystemLibrary("opengl32", .{});
 
             setDesktopPlatform(raylib, options.platform);
         },
@@ -191,15 +191,15 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
 
                 if (options.linux_display_backend == .X11 or options.linux_display_backend == .Both) {
                     raylib.root_module.addCMacro("_GLFW_X11", "");
-                    raylib.linkSystemLibrary("GLX");
-                    raylib.linkSystemLibrary("X11");
-                    raylib.linkSystemLibrary("Xcursor");
-                    raylib.linkSystemLibrary("Xext");
-                    raylib.linkSystemLibrary("Xfixes");
-                    raylib.linkSystemLibrary("Xi");
-                    raylib.linkSystemLibrary("Xinerama");
-                    raylib.linkSystemLibrary("Xrandr");
-                    raylib.linkSystemLibrary("Xrender");
+                    raylib.root_module.linkSystemLibrary("GLX", .{});
+                    raylib.root_module.linkSystemLibrary("X11", .{});
+                    raylib.root_module.linkSystemLibrary("Xcursor", .{});
+                    raylib.root_module.linkSystemLibrary("Xext", .{});
+                    raylib.root_module.linkSystemLibrary("Xfixes", .{});
+                    raylib.root_module.linkSystemLibrary("Xi", .{});
+                    raylib.root_module.linkSystemLibrary("Xinerama", .{});
+                    raylib.root_module.linkSystemLibrary("Xrandr", .{});
+                    raylib.root_module.linkSystemLibrary("Xrender", .{});
                 }
 
                 if (options.linux_display_backend == .Wayland or options.linux_display_backend == .Both) {
@@ -211,9 +211,9 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
                         @panic("`wayland-scanner` not found");
                     };
                     raylib.root_module.addCMacro("_GLFW_WAYLAND", "");
-                    raylib.linkSystemLibrary("EGL");
-                    raylib.linkSystemLibrary("wayland-client");
-                    raylib.linkSystemLibrary("xkbcommon");
+                    raylib.root_module.linkSystemLibrary("EGL", .{});
+                    raylib.root_module.linkSystemLibrary("wayland-client", .{});
+                    raylib.root_module.linkSystemLibrary("xkbcommon", .{});
                     waylandGenerate(b, raylib, "wayland.xml", "wayland-client-protocol");
                     waylandGenerate(b, raylib, "xdg-shell.xml", "xdg-shell-client-protocol");
                     waylandGenerate(b, raylib, "xdg-decoration-unstable-v1.xml", "xdg-decoration-unstable-v1-client-protocol");
@@ -228,13 +228,13 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
                 setDesktopPlatform(raylib, options.platform);
             } else {
                 if (options.opengl_version == .auto) {
-                    raylib.linkSystemLibrary("GLESv2");
+                    raylib.root_module.linkSystemLibrary("GLESv2", .{});
                     raylib.root_module.addCMacro("GRAPHICS_API_OPENGL_ES2", "");
                 }
 
-                raylib.linkSystemLibrary("EGL");
-                raylib.linkSystemLibrary("gbm");
-                raylib.linkSystemLibrary2("libdrm", .{ .use_pkg_config = .force });
+                raylib.root_module.linkSystemLibrary("EGL", .{});
+                raylib.root_module.linkSystemLibrary("gbm", .{});
+                raylib.root_module.linkSystemLibrary("libdrm", .{ .use_pkg_config = .force });
 
                 raylib.root_module.addCMacro("PLATFORM_DRM", "");
                 raylib.root_module.addCMacro("EGL_NO_X11", "");
@@ -243,25 +243,25 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
         },
         .freebsd, .openbsd, .netbsd, .dragonfly => {
             try c_source_files.append(b.allocator, "rglfw.c");
-            raylib.linkSystemLibrary("GL");
-            raylib.linkSystemLibrary("rt");
-            raylib.linkSystemLibrary("dl");
-            raylib.linkSystemLibrary("m");
-            raylib.linkSystemLibrary("X11");
-            raylib.linkSystemLibrary("Xrandr");
-            raylib.linkSystemLibrary("Xinerama");
-            raylib.linkSystemLibrary("Xi");
-            raylib.linkSystemLibrary("Xxf86vm");
-            raylib.linkSystemLibrary("Xcursor");
+            raylib.root_module.linkSystemLibrary("GL", .{});
+            raylib.root_module.linkSystemLibrary("rt", .{});
+            raylib.root_module.linkSystemLibrary("dl", .{});
+            raylib.root_module.linkSystemLibrary("m", .{});
+            raylib.root_module.linkSystemLibrary("X11", .{});
+            raylib.root_module.linkSystemLibrary("Xrandr", .{});
+            raylib.root_module.linkSystemLibrary("Xinerama", .{});
+            raylib.root_module.linkSystemLibrary("Xi", .{});
+            raylib.root_module.linkSystemLibrary("Xxf86vm", .{});
+            raylib.root_module.linkSystemLibrary("Xcursor", .{});
 
             setDesktopPlatform(raylib, options.platform);
         },
         .macos => {
             // Include xcode_frameworks for cross compilation
             if (b.lazyDependency("xcode_frameworks", .{})) |dep| {
-                raylib.addSystemFrameworkPath(dep.path("Frameworks"));
-                raylib.addSystemIncludePath(dep.path("include"));
-                raylib.addLibraryPath(dep.path("lib"));
+                raylib.root_module.addSystemFrameworkPath(dep.path("Frameworks"));
+                raylib.root_module.addSystemIncludePath(dep.path("include"));
+                raylib.root_module.addLibraryPath(dep.path("lib"));
             }
 
             // On macos rglfw.c include Objective-C files.
@@ -271,11 +271,11 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
                 .flags = raylib_flags_arr.items,
             });
             _ = raylib_flags_arr.pop();
-            raylib.linkFramework("Foundation");
-            raylib.linkFramework("CoreServices");
-            raylib.linkFramework("CoreGraphics");
-            raylib.linkFramework("AppKit");
-            raylib.linkFramework("IOKit");
+            raylib.root_module.linkFramework("Foundation", .{});
+            raylib.root_module.linkFramework("CoreServices", .{});
+            raylib.root_module.linkFramework("CoreGraphics", .{});
+            raylib.root_module.linkFramework("AppKit", .{});
+            raylib.root_module.linkFramework("IOKit", .{});
 
             setDesktopPlatform(raylib, options.platform);
         },
@@ -286,7 +286,7 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
                     raylib.step.dependOn(&emSdkStep.step);
                 }
 
-                raylib.addIncludePath(dep.path("upstream/emscripten/cache/sysroot/include"));
+                raylib.root_module.addIncludePath(dep.path("upstream/emscripten/cache/sysroot/include"));
             }
 
             raylib.root_module.addCMacro("PLATFORM_WEB", "");
@@ -438,11 +438,11 @@ fn waylandGenerate(
 
     const client_step = b.addSystemCommand(&.{ "wayland-scanner", "client-header" });
     client_step.addFileArg(b.path(protocolDir));
-    raylib.addIncludePath(client_step.addOutputFileArg(clientHeader).dirname());
+    raylib.root_module.addIncludePath(client_step.addOutputFileArg(clientHeader).dirname());
 
     const private_step = b.addSystemCommand(&.{ "wayland-scanner", "private-code" });
     private_step.addFileArg(b.path(protocolDir));
-    raylib.addIncludePath(private_step.addOutputFileArg(privateCode).dirname());
+    raylib.root_module.addIncludePath(private_step.addOutputFileArg(privateCode).dirname());
 
     raylib.step.dependOn(&client_step.step);
     raylib.step.dependOn(&private_step.step);

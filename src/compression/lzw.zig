@@ -13,7 +13,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
         end_information_code: u13 = 0,
         next_code: u13 = 0,
         previous_code: ?u13 = null,
-        dictionary: std.AutoArrayHashMap(u13, []const u8),
+        dictionary: std.array_hash_map.Auto(u13, []const u8),
 
         remaining_data: ?u13 = null,
         remaining_bits: u4 = 0,
@@ -29,7 +29,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
             var result = Self{
                 .area_allocator = std.heap.ArenaAllocator.init(allocator),
                 .code_size = initial_code_size,
-                .dictionary = std.AutoArrayHashMap(u13, []const u8).init(allocator),
+                .dictionary = .empty,
                 .initial_code_size = initial_code_size,
                 .clear_code = @as(u13, 1) << @intCast(initial_code_size),
                 .end_information_code = (@as(u13, 1) << @intCast(initial_code_size)) + 1,
@@ -45,7 +45,6 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
 
         pub fn deinit(self: *Self) void {
             self.area_allocator.deinit();
-            self.dictionary.deinit();
         }
 
         pub fn decode(self: *Self, reader: *std.Io.Reader, writer: *std.Io.Writer) !void {
@@ -87,7 +86,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
                             var new_value = try allocator.alloc(u8, previous_value.len + 1);
                             std.mem.copyForwards(u8, new_value, previous_value);
                             new_value[previous_value.len] = value[0];
-                            try self.dictionary.put(self.next_code, new_value);
+                            try self.dictionary.put(allocator, self.next_code, new_value);
 
                             self.next_code += 1;
 
@@ -111,7 +110,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
                                 var new_value = try allocator.alloc(u8, previous_value.len + 1);
                                 std.mem.copyForwards(u8, new_value, previous_value);
                                 new_value[previous_value.len] = previous_value[0];
-                                try self.dictionary.put(self.next_code, new_value);
+                                try self.dictionary.put(allocator, self.next_code, new_value);
 
                                 _ = try writer.write(new_value);
 
@@ -139,7 +138,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
         }
 
         fn resetDictionary(self: *Self) !void {
-            self.dictionary.clearRetainingCapacity();
+            self.dictionary.clearAndFree(self.area_allocator.allocator());
             self.area_allocator.deinit();
 
             self.code_size = self.initial_code_size;
@@ -156,7 +155,7 @@ pub fn Decoder(comptime endian: std.builtin.Endian) type {
                 var data = try allocator.alloc(u8, 1);
                 data[0] = @as(u8, @truncate(index));
 
-                try self.dictionary.put(index, data);
+                try self.dictionary.put(allocator, index, data);
             }
         }
     };

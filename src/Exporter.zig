@@ -17,7 +17,7 @@ pub fn init(scene: *canvas.Scene) Self {
 }
 
 /// This function must be called between raylibs BeginDrawing/EndDrawing block.
-pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const u8) !bool {
+pub fn exportScene(self: Self, io: std.Io, allocator: std.mem.Allocator, file_name: []const u8) !bool {
     const animations = try self.scene.getObjects(allocator, canvas.Animation);
     defer allocator.free(animations);
 
@@ -113,7 +113,7 @@ pub fn exportScene(self: Self, allocator: std.mem.Allocator, file_name: []const 
         self.scene.advanceTime(delay);
     }
 
-    try exportSpriteSheet(allocator, builder, file_name);
+    try exportSpriteSheet(io, allocator, builder, file_name);
 
     return true;
 }
@@ -136,11 +136,12 @@ fn renderFrame(
 }
 
 fn exportSpriteSheet(
+    io: std.Io,
     allocator: std.mem.Allocator,
     builder: SpriteSheet.Builder,
     file_name: []const u8,
 ) !void {
-    var gif_writer: gif.Writer = try .init(allocator);
+    var gif_writer: gif.Writer = try .init(io, allocator);
     defer gif_writer.deinit();
 
     var image_writer: std.Io.Writer.Allocating = .init(allocator);
@@ -193,7 +194,7 @@ fn exportSpriteSheet(
         );
     }
 
-    const exe_dir = try std.fs.selfExeDirPathAlloc(allocator);
+    const exe_dir = try std.process.executableDirPathAlloc(io, allocator);
     defer allocator.free(exe_dir);
 
     const stem = std.fs.path.stem(file_name);

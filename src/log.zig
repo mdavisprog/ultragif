@@ -12,7 +12,7 @@ pub fn init(_write_to_stdout: bool) void {
 
 fn onLog(
     comptime level: std.log.Level,
-    comptime scope: @Type(.enum_literal),
+    comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
 ) void {
@@ -23,8 +23,9 @@ fn onLog(
         return;
     }
 
+    const io = std.Options.debug_io;
     var buffer: [1024]u8 = undefined;
-    var std_out = std.fs.File.stdout().writer(&buffer);
+    var std_out = std.Io.File.stdout().writer(io, &buffer);
 
     write(&std_out.interface, format, args);
     write(&std_out.interface, "\n", .{});
