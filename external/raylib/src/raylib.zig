@@ -213,7 +213,6 @@ pub const Shader = extern struct {
 };
 
 pub const FilePathList = extern struct {
-    capacity: u32 = 0,
     count: u32 = 0,
     paths: [*c][*c]u8,
 
@@ -819,6 +818,7 @@ pub fn drawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, or
 }
 
 pub fn loadFontData(file_data: []const u8, font_size: i32, codepoints: ?[]i32, codepoint_count: i32, _type: FontType) []GlyphInfo {
+    var glyph_count: c_int = 0;
     const result = LoadFontData(
         file_data.ptr,
         @intCast(file_data.len),
@@ -826,9 +826,10 @@ pub fn loadFontData(file_data: []const u8, font_size: i32, codepoints: ?[]i32, c
         if (codepoints) |_codepoints| _codepoints.ptr else null,
         @intCast(codepoint_count),
         @intFromEnum(_type),
+        &glyph_count,
     );
 
-    return result[0..@intCast(codepoint_count)];
+    return result[0..@intCast(glyph_count)];
 }
 
 pub fn genImageFontAtlas(
@@ -1006,7 +1007,7 @@ extern fn SetTextureWrap(texture: Texture2D, wrap: c_int) void;
 extern fn DrawTextureV(texture: Texture2D, position: Vector2, tint: Color) void;
 extern fn DrawTexturePro(texture: Texture2D, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) void;
 
-extern fn LoadFontData(file_data: [*c]const u8, data_size: c_int, font_size: c_int, codepoints: [*c]c_int, codepoint_count: c_int, _type: c_int) [*c]GlyphInfo;
+extern fn LoadFontData(file_data: [*c]const u8, data_size: c_int, font_size: c_int, codepoints: [*c]c_int, codepoint_count: c_int, type: c_int, glyphCount: [*c]c_int) [*c]GlyphInfo;
 extern fn GenImageFontAtlas(glyphs: [*c]const GlyphInfo, glyph_recs: [*c][*c]Rectangle, glyph_count: c_int, font_size: c_int, padding: c_int, pack_method: c_int) Image;
 extern fn UnloadFontData(glyphs: [*c]GlyphInfo, glyph_count: c_int) void;
 extern fn UnloadFont(font: Font) void;

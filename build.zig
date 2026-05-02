@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) !void {
             .imports = &.{
                 .{ .name = "clay", .module = clay.module("root") },
                 .{ .name = "plutosvg", .module = plutosvg.module("plutosvg") },
-                .{ .name = "raylib", .module = raylib.module("raylib") },
+                .{ .name = "raylib", .module = raylib.module("raylib-bindings") },
             },
         }),
     });
