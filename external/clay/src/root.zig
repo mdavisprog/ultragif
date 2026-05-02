@@ -461,6 +461,10 @@ pub const BorderWidth = extern struct {
             .bottom = vertical,
         };
     }
+
+    pub fn all(value: u16) BorderWidth {
+        return .init(value, value, value, value);
+    }
 };
 
 // Controls settings related to element borders.

@@ -17,6 +17,7 @@ app: *App,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
 timeline: widgets.Timeline = .{},
+popup: widgets.Popup = .{},
 status_bar: widgets.StatusBar,
 state: State,
 _memory: []const u8,
@@ -139,7 +140,9 @@ pub fn draw(self: *Self) void {
     }
     clay.closeElement();
 
-    clay.closeElement();
+    self.popup.draw(self);
+
+    clay.closeElement(); // Root element
 
     const commands = clay.endLayout();
 
