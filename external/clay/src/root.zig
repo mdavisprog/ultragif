@@ -269,6 +269,13 @@ pub const Sizing = extern struct {
         };
     }
 
+    pub fn grow(min: f32, max: f32) Sizing {
+        return .{
+            .width = .grow(min, max),
+            .height = .grow(min, max),
+        };
+    }
+
     pub fn fixed(width: f32, height: f32) Sizing {
         return .{
             .width = .fixed(width),

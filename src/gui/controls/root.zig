@@ -5,17 +5,20 @@ pub const input = @import("input.zig");
 pub const list = @import("list.zig");
 pub const scroll = @import("scroll.zig");
 pub const separator = @import("separator.zig");
+pub const slider = @import("slider.zig");
 const std = @import("std");
 pub const text = @import("text.zig");
 
 pub const Type = enum {
     input,
     scroll,
+    slider,
 };
 
 pub const Data = union(Type) {
     input: input.Data,
     scroll: scroll.Data,
+    slider: slider.Data,
 
     pub fn deinit(self: *Data, allocator: std.mem.Allocator) void {
         switch (self.*) {

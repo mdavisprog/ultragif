@@ -45,6 +45,7 @@ pub const Icon = enum(u16) {
     export_,
     pause,
     play,
+    slider_handle,
     texture,
 };
 const icon_count = @typeInfo(Icon).@"enum".fields.len;
@@ -63,6 +64,7 @@ pub const Icons = struct {
         .{ .icon = .export_, .data = @embedFile("../assets/icons/export.svg") },
         .{ .icon = .pause, .data = @embedFile("../assets/icons/pause.svg") },
         .{ .icon = .play, .data = @embedFile("../assets/icons/play.svg") },
+        .{ .icon = .slider_handle, .data = @embedFile("../assets/icons/slider_handle.svg") },
         .{ .icon = .texture, .data = @embedFile("../assets/icons/texture.svg") },
     };
 
