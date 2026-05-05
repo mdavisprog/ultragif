@@ -20,6 +20,7 @@ const delay_input_id: clay.ElementId = .fromLabel("DelayInput");
 const segment_gap: f32 = 2.0;
 const segment_time: f32 = 0.01;
 const length_per_segment: f32 = 10.0;
+const timeline_font_size: u16 = 20;
 
 /// Editor to manage frames from all loaded GIFs.
 const Self = @This();
@@ -57,7 +58,6 @@ pub fn draw(self: *Self, container: *Container) void {
 
 fn drawTitleBar(self: *Self, container: *Container) void {
     const state = &container.state;
-    const font_size: u16 = 20;
 
     // Horizontal bar for the title and other controls
     clay.openElement();
@@ -78,13 +78,13 @@ fn drawTitleBar(self: *Self, container: *Container) void {
         },
     });
     {
-        controls.text.label(state.*, "Timeline", .{ .font_size = font_size });
+        controls.text.label(state.*, "Timeline", .{ .font_size = timeline_font_size });
         controls.separator.vertical(state.*, .{ .padding = 1 });
 
         drawControls(container);
         controls.separator.vertical(state.*, .{ .padding = 1 });
 
-        controls.text.label(state.*, "Delay", .{ .font_size = font_size });
+        controls.text.label(state.*, "Delay", .{ .font_size = timeline_font_size });
         const confirmed = controls.input.text(state, delay_input_id, .{
             .width = .fixed(100.0),
             .format = .numbers,
@@ -100,6 +100,8 @@ fn drawTitleBar(self: *Self, container: *Container) void {
                 } else |_| {}
             }
         }
+
+        drawPlayback(container);
     }
     clay.closeElement();
 }
@@ -139,6 +141,56 @@ fn drawControls(container: *Container) void {
                 .play => .pause,
             };
         }
+    }
+    clay.closeElement();
+}
+
+fn drawPlayback(container: *Container) void {
+    controls.text.label(container.state, "Playback", .{ .font_size = timeline_font_size });
+
+    const playback_rate = container.state.formatStringTemp(
+        "{d:1.1}",
+        .{container.app.canvas_scene.playback_rate},
+    );
+
+    const layout: clay.LayoutConfig = .{
+        .sizing = .fit(0.0, 0.0),
+        .child_alignment = .init(.center, .center),
+        .padding = .axes(4.0, 2.0),
+    };
+
+    const id: clay.ElementId = .fromLabel("PlaybackButton");
+    const result = controls.button.label(
+        container.state,
+        id,
+        .{ .text = playback_rate },
+        .{ .layout = layout },
+    );
+
+    if (result == .clicked) {
+        const timeline_element = clay.getElementData(timeline_id);
+        const button_element = clay.getElementData(id);
+        container.popup.openFit(
+            .init(button_element.bounding_box.x, timeline_element.bounding_box.y - 24.0),
+            drawPlaybackPopup,
+        );
+    }
+}
+
+fn drawPlaybackPopup(container: *Container) void {
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .fixed(200.0, 24.0),
+        },
+    });
+    {
+        const value = controls.slider.range(
+            &container.state,
+            .fromLabel("PlaybackSlider"),
+            .{ .min = 0.1, .max = 2.0, .value = container.app.canvas_scene.playback_rate },
+        );
+        container.app.canvas_scene.playback_rate = value;
     }
     clay.closeElement();
 }

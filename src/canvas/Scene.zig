@@ -66,6 +66,7 @@ allocator: std.mem.Allocator,
 callbacks: Callbacks,
 elapsed_time: f32 = 0.0,
 timeline_state: TimelineState = .play,
+playback_rate: f32 = 1.0,
 
 pub fn init(allocator: std.mem.Allocator, callbacks: Callbacks) Self {
     return .{ .allocator = allocator, .callbacks = callbacks };
@@ -279,7 +280,7 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
     switch (self.timeline_state) {
         .pause => {},
         .play => {
-            self.elapsed_time += delta_time;
+            self.elapsed_time += delta_time * self.playback_rate;
             if (self.elapsed_time > self.getMaxTime()) {
                 self.elapsed_time = 0.0;
             }
