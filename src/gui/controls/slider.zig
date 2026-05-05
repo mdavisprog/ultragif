@@ -11,9 +11,19 @@ pub const Data = struct {
 pub const Options = struct {
     min: f32 = 0.0,
     max: f32 = std.math.floatMax(f32),
+    value: f32 = 0.0,
 };
 
 pub fn range(state: *State, id: clay.ElementId, options: Options) f32 {
+    const element = clay.getElementData(id);
+    const width = element.bounding_box.size().x - Theme.Icons.height;
+
+    const data = state.getData(id) orelse state.addData(id, .{ .slider = .{} });
+    const value = @max(options.value, options.min);
+    const value_range = options.max - options.min;
+    const value_ratio = (value - options.min) / value_range;
+    data.slider.position = value_ratio * width;
+
     clay.openElement();
     clay.configureOpenElement(.{
         .id = id,
@@ -30,10 +40,8 @@ pub fn range(state: *State, id: clay.ElementId, options: Options) f32 {
     }
     clay.closeElement();
 
-    const data = state.getData(id) orelse return 0.0;
-    const element = clay.getElementData(id);
-    const ratio = data.slider.position / (element.bounding_box.size().x - Theme.Icons.height);
-    return (ratio * (options.max - options.min)) + options.min;
+    const ratio = data.slider.position / width;
+    return ratio * value_range + options.min;
 }
 
 fn drawBar() void {
@@ -64,7 +72,7 @@ fn drawBar() void {
 }
 
 fn drawHandle(state: *State, id: clay.ElementId) void {
-    const data = state.getData(id) orelse state.addData(id, .{ .slider = .{} });
+    const data = state.getData(id) orelse return;
     const slider_id: clay.ElementId = .fromStringOffset("slider_handle", id.base_id);
 
     clay.openElement();
