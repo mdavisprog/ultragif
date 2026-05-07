@@ -70,14 +70,22 @@ pub const Icons = struct {
 
     pub const width: f32 = 24.0;
     pub const height: f32 = 24.0;
+    pub const slider_handle_size: f32 = 16.0;
 
     textures: [icon_count]*raylib.Texture2D,
+    slider_handle: *raylib.Texture2D,
 
     fn init(allocator: std.mem.Allocator) !Icons {
         var result: Icons = undefined;
         for (svgs) |svg| {
             result.textures[@intFromEnum(svg.icon)] = try loadSVG(allocator, svg.data, width, height);
         }
+        result.slider_handle = try loadSVG(
+            allocator,
+            @embedFile("../assets/icons/slider_handle.svg"),
+            slider_handle_size,
+            slider_handle_size,
+        );
         return result;
     }
 
@@ -85,6 +93,7 @@ pub const Icons = struct {
         for (self.textures) |texture| {
             destroy(allocator, texture);
         }
+        destroy(allocator, self.slider_handle);
     }
 
     fn destroy(allocator: std.mem.Allocator, texture: *raylib.Texture2D) void {
@@ -201,7 +210,7 @@ pub fn measureText(
     max_line_char_count = @max(max_line_char_count, line_char_count);
 
     const scaled_letter_spacing: f32 = @floatFromInt(line_char_count * letter_spacing);
-    return .init( max_text_width * scale_factor + scaled_letter_spacing, font_size);
+    return .init(max_text_width * scale_factor + scaled_letter_spacing, font_size);
 }
 
 fn loadFont(allocator: std.mem.Allocator) !*raylib.Font {

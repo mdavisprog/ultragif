@@ -16,7 +16,7 @@ pub const Options = struct {
 
 pub fn range(state: *State, id: clay.ElementId, options: Options) f32 {
     const element = clay.getElementData(id);
-    const width = element.bounding_box.size().x - Theme.Icons.height;
+    const width = element.bounding_box.size().x - Theme.Icons.slider_handle_size;
 
     const data = state.getData(id) orelse state.addData(id, .{ .slider = .{} });
     const value = @max(options.value, options.min);
@@ -61,7 +61,7 @@ fn drawBar() void {
             .layout = .{
                 .sizing = .{
                     .width = .percent(1.0),
-                    .height = .fixed(8.0),
+                    .height = .fixed(Theme.Icons.slider_handle_size * 0.4),
                 },
             },
             .corner_radius = .all(std.math.degreesToRadians(45.0)),
@@ -74,9 +74,15 @@ fn drawBar() void {
 fn drawHandle(state: *State, id: clay.ElementId) void {
     const data = state.getData(id) orelse return;
     const slider_id: clay.ElementId = .fromStringOffset("slider_handle", id.base_id);
+    const slider_data = clay.getElementData(id);
 
     clay.openElement();
     clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .{
+                .height = .grow(0.0, 0.0),
+            },
+        },
         .floating = .{
             .attach_to = .parent,
             .offset = .{
@@ -85,19 +91,32 @@ fn drawHandle(state: *State, id: clay.ElementId) void {
         },
     });
     {
-        const slider_data = clay.getElementData(id);
-
         const result = controls.handle.draggable(state.*, slider_id, .{
             .sizing = .grow(0.0, 0.0),
         });
-        controls.image.tint(state.*, state.theme.getIcon(.slider_handle), .white);
+
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .layout = .{
+                .sizing = .{
+                    .height = .percent(1.0),
+                },
+                .child_alignment = .{
+                    .y = .center,
+                },
+            },
+        });
+        {
+            controls.image.tint(state.*, state.theme.icons.slider_handle, .white);
+        }
+        clay.closeElement();
 
         switch (result.interaction) {
             .dragging => {
                 data.slider.position = std.math.clamp(
                     data.slider.position + result.mouse_delta.x,
                     0.0,
-                    slider_data.bounding_box.size().x - Theme.Icons.height,
+                    slider_data.bounding_box.size().x - Theme.Icons.slider_handle_size,
                 );
             },
             else => {},
