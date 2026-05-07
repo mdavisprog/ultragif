@@ -1,5 +1,6 @@
 const clay = @import("clay");
 const controls = @import("root.zig");
+const raylib = @import("raylib");
 const State = @import("../State.zig");
 const std = @import("std");
 const Theme = @import("../Theme.zig");
@@ -37,6 +38,24 @@ pub fn range(state: *State, id: clay.ElementId, options: Options) f32 {
     {
         drawBar();
         drawHandle(state, id);
+
+        const slider_id: clay.ElementId = .fromStringOffset("slider_handle", id.base_id);
+        const result = controls.handle.draggable(state.*, slider_id, .{
+            .sizing = .grow(0.0, 0.0),
+        });
+
+        switch (result.interaction) {
+            .dragging => {
+                const mouse_pos = raylib.getMousePosition();
+                const offset = std.math.clamp(
+                    mouse_pos.x - element.bounding_box.x,
+                    0.0,
+                    width,
+                );
+                data.slider.position = offset;
+            },
+            else => {},
+        }
     }
     clay.closeElement();
 
@@ -73,8 +92,6 @@ fn drawBar() void {
 
 fn drawHandle(state: *State, id: clay.ElementId) void {
     const data = state.getData(id) orelse return;
-    const slider_id: clay.ElementId = .fromStringOffset("slider_handle", id.base_id);
-    const slider_data = clay.getElementData(id);
 
     clay.openElement();
     clay.configureOpenElement(.{
@@ -91,10 +108,6 @@ fn drawHandle(state: *State, id: clay.ElementId) void {
         },
     });
     {
-        const result = controls.handle.draggable(state.*, slider_id, .{
-            .sizing = .grow(0.0, 0.0),
-        });
-
         clay.openElement();
         clay.configureOpenElement(.{
             .layout = .{
@@ -110,17 +123,6 @@ fn drawHandle(state: *State, id: clay.ElementId) void {
             controls.image.tint(state.*, state.theme.icons.slider_handle, .white);
         }
         clay.closeElement();
-
-        switch (result.interaction) {
-            .dragging => {
-                data.slider.position = std.math.clamp(
-                    data.slider.position + result.mouse_delta.x,
-                    0.0,
-                    slider_data.bounding_box.size().x - Theme.Icons.slider_handle_size,
-                );
-            },
-            else => {},
-        }
     }
     clay.closeElement();
 }
