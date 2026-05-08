@@ -26,6 +26,10 @@ pub fn main(init: std.process.Init) !void {
     raylib.setWindowState(window_flags);
     raylib.setTargetFPS(60);
 
+    if (build_config.shipping) {
+        raylib.setExitKey(.null);
+    }
+
     const app: *App = try .init(init.io, allocator);
     defer {
         app.deinit();
