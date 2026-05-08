@@ -25,7 +25,8 @@ pub const mouse = struct {
                 if (down) result.down.set(i);
             }
 
-            result.position = raylib.getMousePosition();
+            const scale = raylib.getWindowScaleDPI();
+            result.position = raylib.getMousePosition().mul(scale);
             result.wheel = raylib.getMouseWheelMoveV();
 
             return result;

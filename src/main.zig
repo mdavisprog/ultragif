@@ -18,10 +18,12 @@ pub fn main(init: std.process.Init) !void {
 
     log.init(!build_config.shipping);
 
+    const config_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.window_highdpi));
     const window_flags = @as(u32, @intFromEnum(raylib.ConfigFlags.vsync_hint)) |
         @as(u32, @intFromEnum(raylib.ConfigFlags.window_resizable)) |
         @as(u32, @intFromEnum(raylib.ConfigFlags.window_maximized));
 
+    raylib.setConfigFlags(config_flags);
     raylib.initWindow(960, 540, "UltraGIF");
     raylib.setWindowState(window_flags);
     raylib.setTargetFPS(60);

@@ -240,8 +240,9 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
     }
 
     // Ignoring the mouse state as this should apply even if hovering the GUI.
+    const scale = raylib.getWindowScaleDPI();
     const mouse_button_released = raylib.isMouseButtonReleased(.left);
-    const mouse_delta = raylib.getMouseDelta().scale(-1.0 / self.camera.state.zoom);
+    const mouse_delta = raylib.getMouseDelta().scale(-1.0 / self.camera.state.zoom).mul(scale);
     switch (self.action) {
         .pan_camera => {
             self.camera.move(mouse_delta);
@@ -250,8 +251,8 @@ pub fn update(self: *Self, delta_time: f32, mouse_state: input.mouse.State) void
             if (mouse_button_released) {
                 raylib.enableCursor();
                 raylib.setMousePosition(
-                    @intFromFloat(self.locked_mouse_pos.x),
-                    @intFromFloat(self.locked_mouse_pos.y),
+                    @intFromFloat(self.locked_mouse_pos.x * scale.x),
+                    @intFromFloat(self.locked_mouse_pos.y * scale.y),
                 );
                 self.action = .none;
             }
