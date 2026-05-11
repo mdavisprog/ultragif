@@ -15,7 +15,7 @@ const Interaction = enum {
 };
 
 const timeline_id: clay.ElementId = .fromLabel("Timeline");
-const view_id: clay.ElementId = .fromLabel("TimelineView");
+const timelines_view_id: clay.ElementId = .fromLabel("TimelinesView");
 const delay_input_id: clay.ElementId = .fromLabel("DelayInput");
 const segment_gap: f32 = 2.0;
 const segment_time: f32 = 0.01;
@@ -198,29 +198,62 @@ fn drawPlaybackPopup(container: *Container) void {
 fn drawTimelineView(self: *Self, container: *Container) void {
     clay.openElement();
     clay.configureOpenElement(.{
-        .id = view_id,
         .layout = .{
-            .sizing = .{
-                .width = .percent(1.0),
-                .height = .grow(0.0, 0.0),
-            },
+            .sizing = .grow(0.0, 0.0),
             .layout_direction = .top_to_bottom,
             .child_gap = 4,
         },
-        .clip = .init(true, true, clay.getScrollOffset()),
     });
     {
         self.drawScrubber(container);
-        self.drawTimelines(container);
 
-        controls.scroll.bars(&container.state, view_id, .both);
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .id = timelines_view_id,
+            .layout = .{
+                .sizing = .{
+                    .width = .grow(0.0, 0.0),
+                    .height = .grow(0.0, 0.0),
+                },
+                .layout_direction = .top_to_bottom,
+                .child_gap = 4,
+            },
+            .clip = .init(true, true, clay.getScrollOffset()),
+        });
+        {
+            self.drawTimelines(container);
+
+            controls.scroll.bars(&container.state, timelines_view_id, .both);
+        }
+        clay.closeElement();
     }
     clay.closeElement();
 }
 
 fn drawScrubber(self: *Self, container: *Container) void {
+    const scrubber_scrollable_id: clay.ElementId = .fromLabel("ScrubberScrollable");
     const scrubber_bg_id: clay.ElementId = .fromLabel("ScrubberBackground");
     const scrubber_id: clay.ElementId = .fromLabel("Scrubber");
+
+    const scrollable_element = clay.getElementData(scrubber_scrollable_id);
+    const timelines_view_scroll = clay.getScrollContainerData(timelines_view_id);
+
+    const scroll_offset = if (timelines_view_scroll.found) timelines_view_scroll.scroll_position.*.x else 0.0;
+    const width = @max(timelines_view_scroll.content_dimensions.width, scrollable_element.bounding_box.width);
+
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .id = scrubber_scrollable_id,
+        .layout = .{
+            .sizing = .{
+                .width = .percent(1.0),
+            },
+        },
+        .clip = .{
+            .horizontal = true,
+            .child_offset = .init(scroll_offset, 0.0),
+        },
+    });
 
     clay.openElement();
     clay.configureOpenElement(.{
@@ -228,7 +261,7 @@ fn drawScrubber(self: *Self, container: *Container) void {
         .background_color = .initu8(32, 32, 32, 255),
         .layout = .{
             .sizing = .{
-                .width = .grow(0.0, 0.0),
+                .width = .fixed(width),
                 .height = .fixed(20.0),
             },
         },
@@ -243,7 +276,7 @@ fn drawScrubber(self: *Self, container: *Container) void {
         }
 
         if (self.interaction == .scrubber) {
-            const scroll_data = clay.getScrollContainerData(view_id);
+            const scroll_data = clay.getScrollContainerData(timelines_view_id);
 
             container.app.canvas_scene.timeline_state = .pause;
             const mouse_position = raylib.getMousePosition();
@@ -281,6 +314,8 @@ fn drawScrubber(self: *Self, container: *Container) void {
         }
         clay.closeElement();
     }
+    clay.closeElement();
+
     clay.closeElement();
 }
 
