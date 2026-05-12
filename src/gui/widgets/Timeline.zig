@@ -21,6 +21,7 @@ const segment_gap: f32 = 2.0;
 const segment_time: f32 = 0.01;
 const length_per_segment: f32 = 10.0;
 const timeline_font_size: u16 = 20;
+const timeline_name_font_size: u16 = 18;
 
 /// Editor to manage frames from all loaded GIFs.
 const Self = @This();
@@ -51,7 +52,7 @@ pub fn draw(self: *Self, container: *Container) void {
     });
     {
         self.drawTitleBar(container);
-        self.drawTimelineView(container);
+        self.drawTimelineColumns(container);
     }
     clay.closeElement();
 }
@@ -195,7 +196,86 @@ fn drawPlaybackPopup(container: *Container) void {
     clay.closeElement();
 }
 
-fn drawTimelineView(self: *Self, container: *Container) void {
+fn drawTimelineColumns(self: *Self, container: *Container) void {
+    const canvas_scene = container.app.canvas_scene;
+    const arena = container.state.getArenaAllocator();
+    const objects = canvas_scene.getObjects(arena, canvas.Animation) catch |err| {
+        std.debug.panic("Failed to retrieve animations for drawing timelines: {}", .{err});
+    };
+
+    // Fill the rest of the row of the vertical container.
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .grow(0.0, 0.0),
+            .child_gap = 6,
+        },
+    });
+    {
+        // Expand to fill the region that has been expanded by the parent. This will
+        // allow for scrolling any child elements.
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .layout = .{
+                .sizing = .percent(1.0, 1.0),
+            },
+        });
+        {
+            self.drawNames(container, objects);
+            controls.separator.vertical(container.state, .{
+                .padding = 0,
+            });
+            self.drawTimelineView(container, objects);
+        }
+        clay.closeElement();
+    }
+    clay.closeElement();
+}
+
+fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object) void {
+    _ = self;
+
+    const timelines_view_scroll = clay.getScrollContainerData(timelines_view_id);
+    const offset: clay.Vector2 = if (timelines_view_scroll.found) timelines_view_scroll.scroll_position.* else .zero;
+
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .{
+                .width = .fixed(150.0),
+            },
+            .child_alignment = .init(.center, .center),
+            .layout_direction = .top_to_bottom,
+            .child_gap = 4,
+        },
+    });
+    {
+        controls.text.label(container.state, "Animations", .{
+            .font_size = timeline_font_size,
+        });
+
+        clay.openElement();
+        clay.configureOpenElement(.{
+            .layout = .{
+                .layout_direction = .top_to_bottom,
+                .child_gap = 4,
+            },
+            .clip = .init(true, true, .init(0.0, offset.y)),
+        });
+        {
+            for (objects) |object| {
+                const animation = object.as(canvas.Animation);
+                controls.text.label(container.state, animation.texture.name(), .{
+                    .font_size = timeline_name_font_size,
+                });
+            }
+        }
+        clay.closeElement();
+    }
+    clay.closeElement();
+}
+
+fn drawTimelineView(self: *Self, container: *Container, objects: []const *canvas.Object) void {
     clay.openElement();
     clay.configureOpenElement(.{
         .layout = .{
@@ -221,7 +301,7 @@ fn drawTimelineView(self: *Self, container: *Container) void {
             .clip = .init(true, true, clay.getScrollOffset()),
         });
         {
-            self.drawTimelines(container);
+            self.drawTimelines(container, objects);
 
             controls.scroll.bars(&container.state, timelines_view_id, .both);
         }
@@ -262,7 +342,7 @@ fn drawScrubber(self: *Self, container: *Container) void {
         .layout = .{
             .sizing = .{
                 .width = .fixed(width),
-                .height = .fixed(20.0),
+                .height = .fixed(@floatFromInt(timeline_font_size)),
             },
         },
     });
@@ -319,13 +399,7 @@ fn drawScrubber(self: *Self, container: *Container) void {
     clay.closeElement();
 }
 
-fn drawTimelines(self: *Self, container: *Container) void {
-    const canvas_scene = container.app.canvas_scene;
-    const arena = container.state.getArenaAllocator();
-    const objects = canvas_scene.getObjects(arena, canvas.Animation) catch |err| {
-        std.debug.panic("Failed to retrieve animations from canvas: {}", .{err});
-    };
-
+fn drawTimelines(self: *Self, container: *Container, objects: []const *canvas.Object) void {
     for (objects, 0..) |object, i| {
         // Container for all timeline segments.
         clay.openElement();
@@ -333,7 +407,7 @@ fn drawTimelines(self: *Self, container: *Container) void {
             .layout = .{
                 .sizing = .{
                     .width = .grow(0.0, 0.0),
-                    .height = .fixed(10),
+                    .height = .fixed(@floatFromInt(timeline_name_font_size)),
                 },
             },
         });
