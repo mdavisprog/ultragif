@@ -1,5 +1,8 @@
 const clay = @import("clay");
+const controls = @import("root.zig");
 const State = @import("../State.zig");
+
+const handle = controls.handle;
 
 pub const Options = struct {
     padding: u16 = 8,
@@ -14,11 +17,34 @@ pub fn vertical(state: State, options: Options) void {
     container(state, .vertical, options);
 }
 
+pub fn verticalDrag(state: State, id: clay.ElementId, options: Options) handle.Result {
+    return containerDrag(state, id, .vertical, options);
+}
+
 pub fn horizontal(state: State, options: Options) void {
     container(state, .horizontal, options);
 }
 
+pub fn horizontalDrag(state: State, id: clay.ElementId, options: Options) handle.Result {
+    return containerDrag(state, id, .horizontal, options);
+}
+
 fn container(state: State, _type: Type, options: Options) void {
+    begin(state, _type, options);
+    end();
+}
+
+fn containerDrag(state: State, id: clay.ElementId, _type: Type, options: Options) handle.Result {
+    begin(state, _type, options);
+    const result = handle.draggable(state, id, .{
+        .sizing = .grow(0.0, 0.0),
+    });
+    end();
+
+    return result;
+}
+
+fn begin(state: State, _type: Type, options: Options) void {
     const layout = getLayout(
         _type,
         state.theme.constants.separator_horizontal_size,
@@ -39,6 +65,9 @@ fn container(state: State, _type: Type, options: Options) void {
         });
         clay.closeElement();
     }
+}
+
+fn end() void {
     clay.closeElement();
 }
 
