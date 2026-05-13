@@ -29,6 +29,7 @@ const Self = @This();
 selected_animation: ?*canvas.Animation = null,
 selected_frame: usize = 0,
 interaction: Interaction = .none,
+name_column_size: f32 = 150.0,
 
 pub fn draw(self: *Self, container: *Container) void {
     if (raylib.isMouseButtonReleased(.left)) {
@@ -222,10 +223,26 @@ fn drawTimelineColumns(self: *Self, container: *Container) void {
         });
         {
             self.drawNames(container, objects);
-            controls.separator.vertical(container.state, .{
+            const result = controls.separator.verticalDrag(container.state, .fromLabel("NamesSeparator"), .{
                 .padding = 0,
             });
             self.drawTimelineView(container, objects);
+
+            switch (result.interaction) {
+                .dragging => {
+                    const root_data = clay.getElementData(timeline_id);
+                    self.name_column_size = @floor(std.math.clamp(
+                        self.name_column_size + result.mouse_delta.x,
+                        150.0,
+                        root_data.bounding_box.width * 0.8,
+                    ));
+                },
+                else => {},
+            }
+
+            if (result.interaction != .none) {
+                input.mouse.setCursor(.resize_ew);
+            }
         }
         clay.closeElement();
     }
@@ -233,8 +250,6 @@ fn drawTimelineColumns(self: *Self, container: *Container) void {
 }
 
 fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object) void {
-    _ = self;
-
     const timelines_view_scroll = clay.getScrollContainerData(timelines_view_id);
     const offset: clay.Vector2 = if (timelines_view_scroll.found) timelines_view_scroll.scroll_position.* else .zero;
 
@@ -242,7 +257,7 @@ fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object
     clay.configureOpenElement(.{
         .layout = .{
             .sizing = .{
-                .width = .fixed(150.0),
+                .width = .fixed(self.name_column_size),
             },
             .child_alignment = .init(.center, .center),
             .layout_direction = .top_to_bottom,
