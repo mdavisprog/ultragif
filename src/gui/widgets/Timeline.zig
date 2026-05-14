@@ -362,6 +362,7 @@ fn drawScrubber(self: *Self, container: *Container) void {
         },
     });
     {
+        const scrubber_element = clay.getElementData(scrubber_bg_id);
         const max_time = container.app.canvas_scene.getMaxTime();
         const max_offset = max_time / segment_time * length_per_segment;
 
@@ -370,13 +371,11 @@ fn drawScrubber(self: *Self, container: *Container) void {
             self.interaction = .scrubber;
         }
 
-        if (self.interaction == .scrubber) {
-            const scroll_data = clay.getScrollContainerData(timelines_view_id);
-
+        if (self.interaction == .scrubber and hovered) {
             container.app.canvas_scene.timeline_state = .pause;
             const mouse_position = raylib.getMousePosition();
 
-            const offset = mouse_position.x - scroll_data.scroll_position.*.x;
+            const offset = mouse_position.x - scrubber_element.bounding_box.x;
             const ratio: f32 = @min(offset / max_offset, 1.0);
             const elapsed_time = ratio * max_time;
             container.app.canvas_scene.elapsed_time = elapsed_time;
@@ -401,11 +400,13 @@ fn drawScrubber(self: *Self, container: *Container) void {
             },
         });
         {
-            controls.image.tint(
-                container.state,
-                container.state.theme.getIcon(.arrow_down),
-                .white,
-            );
+            if (offset + scroll_offset > 0.0) {
+                controls.image.tint(
+                    container.state,
+                    container.state.theme.getIcon(.arrow_down),
+                    .white,
+                );
+            }
         }
         clay.closeElement();
     }
