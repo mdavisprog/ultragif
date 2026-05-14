@@ -272,6 +272,9 @@ fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object
         clay.openElement();
         clay.configureOpenElement(.{
             .layout = .{
+                .sizing = .{
+                    .width = .percent(1.0),
+                },
                 .layout_direction = .top_to_bottom,
                 .child_gap = 4,
             },
@@ -279,13 +282,55 @@ fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object
         });
         {
             for (objects) |object| {
-                const animation = object.as(canvas.Animation);
-                controls.text.label(container.state, animation.texture.name(), .{
-                    .font_size = timeline_name_font_size,
-                });
+                self.drawName(container, object);
             }
         }
         clay.closeElement();
+    }
+    clay.closeElement();
+}
+
+fn drawName(self: *Self, container: *Container, object: *canvas.Object) void {
+    if (container.app.canvas_scene.selected) |selected| {
+        if (selected.isA(canvas.Animation)) {
+            self.selected_animation = selected.as(canvas.Animation);
+        }
+    }
+
+    const animation = object.as(canvas.Animation);
+    const is_selected = if (self.selected_animation) |selected|
+        selected == animation
+    else
+        false;
+
+    clay.openElement();
+
+    const hovered = clay.hovered();
+    const bg_color: clay.Color = if (hovered or is_selected)
+        container.state.theme.colors.button_hovered
+    else
+        .blank;
+
+    if (hovered and raylib.isMouseButtonPressed(.left)) {
+        self.selected_animation = animation;
+        container.app.canvas_scene.selected = object;
+    }
+
+    clay.configureOpenElement(.{
+        .background_color = bg_color,
+        .layout = .{
+            .sizing = .{
+                .width = .percent(1.0),
+                .height = .grow(0.0, 0.0),
+            },
+            .child_alignment = .init(.center, .center),
+        },
+    });
+    {
+        const text = animation.texture.name();
+        controls.text.label(container.state, text, .{
+            .font_size = timeline_name_font_size
+        });
     }
     clay.closeElement();
 }
