@@ -13,9 +13,8 @@ const units = @import("../../units.zig");
 const Texture = TextureCache.Texture;
 
 pub const Category = enum {
-    animations,
-    texture,
     export_,
+    texture,
 };
 
 const sizer_size: f32 = 8.0;
@@ -25,7 +24,7 @@ const min_size: f32 = 0.2;
 const Self = @This();
 const id: clay.ElementId = .fromLabel("Panel");
 
-category: Category = .animations,
+category: Category = .export_,
 x_pos: f32 = 0.0,
 
 pub fn init(x_pos: f32) Self {
@@ -53,9 +52,6 @@ pub fn draw(self: *Self, container: *Container) void {
     });
     {
         switch (self.category) {
-            .animations => {
-                drawAnimations(container);
-            },
             .texture => {
                 drawTexturesInfo(container);
             },
@@ -177,34 +173,6 @@ fn drawTexturesInfo(container: *Container) void {
     controls.list.end();
 }
 
-fn drawAnimations(container: *Container) void {
-    const arena = container.state.getArenaAllocator();
-
-    const animations = container.app.canvas_scene.getObjects(arena, canvas.Animation) catch |err| {
-        std.debug.panic("Failed to get animations from canvas. Error: {}", .{err});
-    };
-    defer arena.free(animations);
-
-    drawTitle(container.state, "Canvas");
-
-    const config: controls.text.Config = .{ .font_size = 18 };
-    controls.list.begin();
-    for (animations) |animation| {
-        const selected = container.app.canvas_scene.isSelected(animation);
-        const _animation = animation.as(canvas.Animation);
-        const name = _animation.texture.name();
-        const clicked = controls.list.beginItem(container.state, .{ .selected = selected });
-        const label = container.state.formatStringTemp("{s}", .{name});
-        controls.text.label(container.state, label, config);
-        controls.list.endItem();
-
-        if (clicked) {
-            container.app.canvas_scene.setSelection(animation);
-        }
-    }
-    controls.list.end();
-}
-
 fn drawExport(container: *Container) void {
     drawTitle(container.state, "Export");
 
@@ -286,7 +254,6 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
     });
 
     const icon = switch (category) {
-        .animations => Theme.Icon.animated_images,
         .texture => Theme.Icon.texture,
         .export_ => Theme.Icon.export_,
     };
@@ -307,7 +274,7 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
         self.category = category;
 
         container.app.canvas_scene.draw_type = switch (category) {
-            .animations, .export_ => .animations,
+            .export_ => .animations,
             .texture => .texture,
         };
     }
@@ -318,7 +285,6 @@ fn drawCategoryIcon(self: *Self, container: *Container, category: Category) void
 fn getCategoryId(category: Category) clay.ElementId {
     const prefix = "category_";
     return switch (category) {
-        .animations => clay.idc(prefix ++ "animation"),
         .texture => clay.idc(prefix ++ "texture"),
         .export_ => clay.idc(prefix ++ "export"),
     };
