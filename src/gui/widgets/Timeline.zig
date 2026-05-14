@@ -295,6 +295,8 @@ fn drawName(self: *Self, container: *Container, object: *canvas.Object) void {
         if (selected.isA(canvas.Animation)) {
             self.selected_animation = selected.as(canvas.Animation);
         }
+    } else {
+        self.selected_animation = null;
     }
 
     const animation = object.as(canvas.Animation);
@@ -312,8 +314,7 @@ fn drawName(self: *Self, container: *Container, object: *canvas.Object) void {
         .blank;
 
     if (hovered and raylib.isMouseButtonPressed(.left)) {
-        self.selected_animation = animation;
-        container.app.canvas_scene.selected = object;
+        self.setSelectedAnimation(container, object);
     }
 
     clay.configureOpenElement(.{
@@ -473,17 +474,17 @@ fn drawTimelines(self: *Self, container: *Container, objects: []const *canvas.Ob
             },
         });
         {
-            const animation = object.as(canvas.Animation);
-            self.drawTimeline(container, animation, i);
+            self.drawTimeline(container, object, i);
         }
         clay.closeElement();
     }
 }
 
-fn drawTimeline(self: *Self, container: *Container, animation: *canvas.Animation, index: usize) void {
+fn drawTimeline(self: *Self, container: *Container, object: *canvas.Object, index: usize) void {
+    const animation = object.as(canvas.Animation);
     for (animation.frames, 0..) |frame, i| {
         const string = container.state.formatStringTemp("Animation_{}_Frame", .{index});
-        self.drawFrame(container, frame, i, animation, .fromStringOffset(string, @intCast(i)));
+        self.drawFrame(container, frame, i, object, .fromStringOffset(string, @intCast(i)));
     }
 }
 
@@ -492,9 +493,10 @@ fn drawFrame(
     container: *Container,
     frame: SpriteSheet.Frame,
     index: usize,
-    animation: *canvas.Animation,
+    object: *canvas.Object,
     id: clay.ElementId,
 ) void {
+    const animation = object.as(canvas.Animation);
     const segments = frame.delay / segment_time;
 
     clay.openElement();
@@ -516,7 +518,7 @@ fn drawFrame(
 
     if (clay.hovered()) {
         if (raylib.isMouseButtonPressed(.left)) {
-            self.selected_animation = animation;
+            self.setSelectedAnimation(container, object);
             self.selected_frame = index;
             setDelayContents(container, frame.delay);
         }
@@ -548,7 +550,7 @@ fn drawFrame(
             },
             .dragging => {
                 self.interaction = .frames;
-                self.selected_animation = animation;
+                self.setSelectedAnimation(container, object);
                 self.selected_frame = index;
 
                 if (result.mouse_delta.x != 0.0) {
@@ -571,6 +573,11 @@ fn isSelected(self: Self, animation: *const canvas.Animation) bool {
 
 fn isFrameSelected(self: Self, animation: *const canvas.Animation, index: usize) bool {
     return self.isSelected(animation) and self.selected_frame == index;
+}
+
+fn setSelectedAnimation(self: *Self, container: *Container, object: *canvas.Object) void {
+    self.selected_animation = object.as(canvas.Animation);
+    container.app.canvas_scene.selected = object;
 }
 
 fn setSelectedDelay(self: Self, delay: f32) void {
