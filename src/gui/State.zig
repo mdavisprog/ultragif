@@ -146,10 +146,13 @@ fn updateFocused(self: *Self) void {
     // Clear the current focus stack.
     self.focused = @splat(.{});
 
-    var i = @min(self.focused.len, hovered.len()) -| 1;
-    while (i >= 0) : (i -= 1) {
-        self.focused[i] = hovered.get(i);
-        if (i == 0) break;
+    var src = hovered.len() - 1;
+    var dst: usize = 0;
+    while (src >= 0 and dst < self.focused.len) {
+        self.focused[dst] = hovered.get(src);
+        if (src == 0) break;
+        src -|= 1;
+        dst += 1;
     }
 }
 
@@ -161,4 +164,11 @@ fn contains(items: []const clay.ElementId, id: clay.ElementId) bool {
     }
 
     return false;
+}
+
+fn print(ids: []const clay.ElementId) void {
+    std.log.debug("ids: {}", .{ids.len});
+    for (ids) |id| {
+        std.log.debug("   {s} {}", .{ id.string_id.str(), id.id });
+    }
 }
