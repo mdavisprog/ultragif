@@ -7,11 +7,24 @@ const raylib = @import("raylib");
 const SpriteSheet = @import("../../SpriteSheet.zig");
 const State = @import("../State.zig");
 const std = @import("std");
+const Theme = @import("../Theme.zig");
 
 const Interaction = enum {
     none,
     scrubber,
     frames,
+};
+
+const AnimOption = enum {
+    clone,
+    delete,
+
+    fn str(comptime self: AnimOption) []const u8 {
+        return switch (self) {
+            .clone => "Clone",
+            .delete => "Delete",
+        };
+    }
 };
 
 const timeline_id: clay.ElementId = .fromLabel("Timeline");
@@ -282,13 +295,81 @@ fn drawNames(self: *Self, container: *Container, objects: []const *canvas.Object
             .clip = .init(true, true, .init(0.0, offset.y)),
         });
         {
-            for (objects) |object| {
-                self.drawName(container, object);
+            for (objects, 0..) |object, i| {
+                self.drawNameContainer(container, object, i);
             }
         }
         clay.closeElement();
     }
     clay.closeElement();
+}
+
+fn drawNameContainer(self: *Self, container: *Container, object: *canvas.Object, index: usize) void {
+    clay.openElement();
+    clay.configureOpenElement(.{
+        .layout = .{
+            .sizing = .{
+                .width = .percent(1.0),
+            },
+        },
+    });
+    {
+        const animation = object.as(canvas.Animation);
+        const id_string = container.state.formatStringTemp("AnimButton_{s}_{}", .{
+            animation.texture.name(),
+            index,
+        });
+        const id: clay.ElementId = .fromString(id_string);
+
+        const texture = container.state.theme.getIcon(.more_horizontal);
+        const image: controls.button.ImageConfig = .{
+            .texture = texture,
+        };
+
+        const result = controls.button.image(container.state, id, image, .{
+            .layout = .{
+                .sizing = .fixed(@floatFromInt(texture.width), @floatFromInt(texture.height)),
+                .padding = .axes(0.0, 0.0),
+            },
+            .active_color = .blank,
+            .background_color = .blank,
+            .corner_radius = 0.0,
+        });
+        self.drawName(container, object);
+
+        switch (result) {
+            .pressed => {
+                self.setSelectedAnimation(container, object);
+                container.popup.openFit(.mouse, onDrawNameOptions);
+            },
+            else => {},
+        }
+    }
+    clay.closeElement();
+}
+
+fn onDrawNameOptions(container: *Container) void {
+    const items = [_][]const u8{
+        AnimOption.clone.str(),
+        AnimOption.delete.str(),
+    };
+    const result = controls.list.stringItems(container.state, &items, 18);
+    if (result) |result_| {
+        const option: AnimOption = @enumFromInt(result_);
+
+        switch (option) {
+            .clone => {
+                container.app.canvas_scene.cloneSelected() catch |err| {
+                    std.log.warn("Failed to clone selected object: {}", .{err});
+                };
+            },
+            .delete => {
+                _ = container.app.canvas_scene.deleteSelected();
+            },
+        }
+
+        container.popup.close();
+    }
 }
 
 fn drawName(self: *Self, container: *Container, object: *canvas.Object) void {
@@ -321,17 +402,14 @@ fn drawName(self: *Self, container: *Container, object: *canvas.Object) void {
     clay.configureOpenElement(.{
         .background_color = bg_color,
         .layout = .{
-            .sizing = .{
-                .width = .percent(1.0),
-                .height = .grow(0.0, 0.0),
-            },
+            .sizing = .grow(0.0, 0.0),
             .child_alignment = .init(.center, .center),
         },
     });
     {
         const text = animation.texture.name();
         controls.text.label(container.state, text, .{
-            .font_size = timeline_name_font_size
+            .font_size = timeline_name_font_size,
         });
     }
     clay.closeElement();
@@ -470,8 +548,9 @@ fn drawTimelines(self: *Self, container: *Container, objects: []const *canvas.Ob
             .layout = .{
                 .sizing = .{
                     .width = .grow(0.0, 0.0),
-                    .height = .fixed(@floatFromInt(timeline_name_font_size)),
+                    .height = .fixed(Theme.Icons.height),
                 },
+                .child_alignment = .{ .y = .center },
             },
         });
         {
@@ -530,7 +609,7 @@ fn drawFrame(
         .layout = .{
             .sizing = .{
                 .width = .fixed(segments * length_per_segment),
-                .height = .percent(1.0),
+                .height = .fixed(@floatFromInt(timeline_name_font_size)),
             },
         },
         .border = .{
