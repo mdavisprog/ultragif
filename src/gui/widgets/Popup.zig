@@ -14,6 +14,11 @@ pub const Options = struct {
     },
 };
 
+pub const Position = union(enum) {
+    mouse: void,
+    at: clay.Vector2,
+};
+
 pub const OnDraw = *const fn (*Container) void;
 
 /// Represents a popup window that can be displayed anywhere in the app.
@@ -24,18 +29,24 @@ state: State = .closed,
 on_draw: ?OnDraw = null,
 layout: clay.LayoutConfig = .{},
 
-pub fn openFit(self: *Self, position: clay.Vector2, on_draw: OnDraw) void {
+pub fn openFit(self: *Self, position: Position, on_draw: OnDraw) void {
     self.open(position, on_draw, .{
         .layout = .{
             .sizing = .fit(0.0, 0.0),
-            .padding = .axes(4, 4),
+            .padding = .axes(12, 12),
         },
     });
 }
 
-pub fn open(self: *Self, position: clay.Vector2, on_draw: OnDraw, options: Options) void {
+pub fn open(self: *Self, position: Position, on_draw: OnDraw, options: Options) void {
+    const mouse_pos = raylib.getMousePosition();
+    const pos: clay.Vector2 = switch (position) {
+        .mouse => .init(mouse_pos.x, mouse_pos.y),
+        .at => |at| at,
+    };
+
     self.state = .open;
-    self.position = position;
+    self.position = pos;
     self.on_draw = on_draw;
     self.layout = options.layout;
 }

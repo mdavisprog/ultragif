@@ -144,6 +144,10 @@ pub const String = extern struct {
     }
 
     pub fn str(self: String) []const u8 {
+        if (self.chars == null) {
+            return "";
+        }
+
         const len: usize = @intCast(self.length);
         return self.chars[0..len];
     }
@@ -197,6 +201,10 @@ pub const ElementIdArray = extern struct {
     pub fn get(self: ElementIdArray, index: usize) ElementId {
         const slice = self.internal_array[0..self.len()];
         return slice[index];
+    }
+
+    pub fn toSlice(self: ElementIdArray) []const ElementId {
+        return self.internal_array[0..self.len()];
     }
 };
 

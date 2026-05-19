@@ -172,10 +172,11 @@ fn drawPlayback(container: *Container) void {
     if (result == .clicked) {
         const timeline_element = clay.getElementData(timeline_id);
         const button_element = clay.getElementData(id);
-        container.popup.openFit(
-            .init(button_element.bounding_box.x, timeline_element.bounding_box.y - 24.0),
-            drawPlaybackPopup,
+        const position: clay.Vector2 = .init(
+            button_element.bounding_box.x,
+            timeline_element.bounding_box.y - 24.0,
         );
+        container.popup.openFit(.{ .at = position }, drawPlaybackPopup);
     }
 }
 

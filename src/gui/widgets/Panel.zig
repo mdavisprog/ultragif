@@ -157,7 +157,7 @@ fn drawTexturesInfo(container: *Container) void {
 
     const current_texture = container.app.canvas_scene.texture;
 
-    controls.list.begin();
+    controls.list.begin(.{});
     textures = container.app.texture_cache.textures.valueIterator();
     while (textures.next()) |texture| {
         const selected = if (current_texture) |t| t == texture.* else false;
