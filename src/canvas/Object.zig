@@ -7,6 +7,7 @@ const VTable = struct {
     update: *const fn (*anyopaque, f32) void,
     draw: *const fn (*anyopaque, raylib.Vector2) void,
     getSize: *const fn (*const anyopaque) raylib.Vector2,
+    clone: *const fn (*const anyopaque, std.mem.Allocator) anyerror!*anyopaque,
     cleanup: ?*const fn (*anyopaque, std.mem.Allocator) void,
     /// This will be supplied internally. Implementations do not need to provide this.
     dtor: *const fn (*anyopaque, std.mem.Allocator) void,
@@ -31,6 +32,7 @@ pub fn init(impl: anytype) Self {
             .update = @ptrCast(&@field(Impl, "update")),
             .draw = @ptrCast(&@field(Impl, "draw")),
             .getSize = @ptrCast(&@field(Impl, "getSize")),
+            .clone = @ptrCast(&@field(Impl, "clone")),
             .cleanup = if (std.meta.hasFn(Impl, "cleanup")) @ptrCast(&@field(Impl, "cleanup")) else null,
             .dtor = @ptrCast(&@field(ImplDestructor, "dtor")),
         },
@@ -52,6 +54,18 @@ pub fn update(self: Self, delta_time: f32) void {
 
 pub fn draw(self: Self) void {
     self.vtable.draw(self.ptr, self.position);
+}
+
+pub fn clone(self: Self, allocator: std.mem.Allocator) !*Self {
+    const ptr = try self.vtable.clone(self.ptr, allocator);
+    const cloned = try allocator.create(Self);
+    cloned.* = .{
+        .ptr = ptr,
+        .vtable = self.vtable,
+        .type_id = self.type_id,
+        .position = self.position,
+    };
+    return cloned;
 }
 
 pub fn bounds(self: Self) raylib.Rectangle {

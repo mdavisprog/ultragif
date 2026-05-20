@@ -107,6 +107,17 @@ pub fn addObject(self: *Self, object: anytype) !*canvas.Object {
     return result;
 }
 
+pub fn cloneObject(self: *Self, object: *canvas.Object) !*canvas.Object {
+    const cloned = try object.clone(self.allocator);
+    try self.objects.append(self.allocator, cloned);
+
+    if (cloned.isA(canvas.Animation)) {
+        try self.animations.append(self.allocator, cloned);
+    }
+
+    return cloned;
+}
+
 pub fn removeObject(self: *Self, object: *canvas.Object) bool {
     var result = false;
     for (self.objects.items, 0..) |item, i| {
@@ -196,6 +207,11 @@ pub fn deleteSelected(self: *Self) bool {
     }
 
     return self.removeObject(selected);
+}
+
+pub fn cloneSelected(self: *Self) !void {
+    const selected = self.selected orelse return;
+    _ = try self.cloneObject(selected);
 }
 
 pub fn isHovered(self: Self, object: *const canvas.Object) bool {

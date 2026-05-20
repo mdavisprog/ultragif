@@ -65,6 +65,15 @@ pub fn getSize(self: *const Self) raylib.Vector2 {
     return self.texture.sheet.frame_size;
 }
 
+pub fn clone(self: *Self, allocator: std.mem.Allocator) !*anyopaque {
+    const cloned = try allocator.create(Self);
+    cloned.* = .{
+        .texture = self.texture,
+        .frames = try allocator.dupe(Frame, self.frames),
+    };
+    return cloned;
+}
+
 pub fn cleanup(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self.frames);
 }
