@@ -17,7 +17,7 @@ app: *App,
 canvas: widgets.Canvas = .{},
 panel: widgets.Panel = .{},
 timeline: widgets.Timeline = .{},
-popup: widgets.Popup = .{},
+popup: widgets.Popup,
 status_bar: widgets.StatusBar,
 state: State,
 _memory: []const u8,
@@ -46,6 +46,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
     result.* = .{
         .app = app,
         .panel = .init(@as(f32, @floatFromInt(raylib.getScreenWidth())) * 0.7),
+        .popup = .init(allocator),
         .status_bar = status_bar,
         .state = try .init(allocator),
         ._memory = memory,
@@ -59,6 +60,7 @@ pub fn create(allocator: std.mem.Allocator, app: *App) !*Self {
 pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self._memory);
 
+    self.popup.deinit();
     self.status_bar.deinit(allocator);
     self.state.deinit();
 }

@@ -19,6 +19,13 @@ const AnimOption = enum {
     clone,
     delete,
 
+    fn asMenuItems() []const []const u8 {
+        return &.{
+            AnimOption.clone.str(),
+            AnimOption.delete.str(),
+        };
+    }
+
     fn str(comptime self: AnimOption) []const u8 {
         return switch (self) {
             .clone => "Clone",
@@ -339,8 +346,10 @@ fn drawNameContainer(self: *Self, container: *Container, object: *canvas.Object,
 
         switch (result) {
             .pressed => {
-                self.setSelectedAnimation(container, object);
-                container.popup.openFit(.mouse, onDrawNameOptions);
+                if (!container.popup.isOpen()) {
+                    self.setSelectedAnimation(container, object);
+                    container.popup.openMenu(.mouse, AnimOption.asMenuItems(), onAnimOptionSelected);
+                }
             },
             else => {},
         }
@@ -348,27 +357,17 @@ fn drawNameContainer(self: *Self, container: *Container, object: *canvas.Object,
     clay.closeElement();
 }
 
-fn onDrawNameOptions(container: *Container) void {
-    const items = [_][]const u8{
-        AnimOption.clone.str(),
-        AnimOption.delete.str(),
-    };
-    const result = controls.list.stringItems(container.state, &items, 18);
-    if (result) |result_| {
-        const option: AnimOption = @enumFromInt(result_);
-
-        switch (option) {
-            .clone => {
-                container.app.canvas_scene.cloneSelected() catch |err| {
-                    std.log.warn("Failed to clone selected object: {}", .{err});
-                };
-            },
-            .delete => {
-                _ = container.app.canvas_scene.deleteSelected();
-            },
-        }
-
-        container.popup.close();
+fn onAnimOptionSelected(index: usize, container: *Container) void {
+    const option: AnimOption = @enumFromInt(index);
+    switch (option) {
+        .clone => {
+            container.app.canvas_scene.cloneSelected() catch |err| {
+                std.log.warn("Failed to clone selected object: {}", .{err});
+            };
+        },
+        .delete => {
+            _ = container.app.canvas_scene.deleteSelected();
+        },
     }
 }
 
