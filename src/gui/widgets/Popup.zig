@@ -5,6 +5,7 @@ const std = @import("std");
 
 pub const State = enum {
     closed,
+    opening,
     open,
 };
 
@@ -45,7 +46,7 @@ pub fn open(self: *Self, position: Position, on_draw: OnDraw, options: Options) 
         .at => |at| at,
     };
 
-    self.state = .open;
+    self.state = .opening;
     self.position = pos;
     self.on_draw = on_draw;
     self.layout = options.layout;
@@ -80,10 +81,19 @@ pub fn draw(self: *Self, container: *Container) void {
     }
     clay.closeElement();
 
-    const mouse_pos = raylib.getMousePosition();
-    const element = clay.getElementData(id);
-    const hovered = element.bounding_box.contains(.init(mouse_pos.x, mouse_pos.y));
-    if (!hovered and raylib.isMouseButtonPressed(.left)) {
-        self.close();
+    switch (self.state) {
+        .opening => {
+            self.state = .open;
+        },
+        .open => {
+            const mouse_pos = raylib.getMousePosition();
+            const element = clay.getElementData(id);
+            const hovered = element.bounding_box.contains(.init(mouse_pos.x, mouse_pos.y));
+            if (!hovered and raylib.isMouseButtonPressed(.left)) {
+                std.log.debug("Closing", .{});
+                self.close();
+            }
+        },
+        else => {},
     }
 }
