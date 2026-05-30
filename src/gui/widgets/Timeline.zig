@@ -561,7 +561,7 @@ fn drawTimelines(self: *Self, container: *Container, objects: []const *canvas.Ob
 
 fn drawTimeline(self: *Self, container: *Container, object: *canvas.Object, index: usize) void {
     const animation = object.as(canvas.Animation);
-    for (animation.frames, 0..) |frame, i| {
+    for (animation.frames.items, 0..) |frame, i| {
         const string = container.state.formatStringTemp("Animation_{}_Frame", .{index});
         self.drawFrame(container, frame, i, object, .fromStringOffset(string, @intCast(i)));
     }
@@ -633,10 +633,10 @@ fn drawFrame(
                 self.selected_frame = index;
 
                 if (result.mouse_delta.x != 0.0) {
-                    const delay = animation.frames[index].delay;
+                    const delay = animation.frames.items[index].delay;
                     const delta = result.mouse_delta.x * (segment_time / length_per_segment);
-                    animation.frames[index].delay = @max(delay + delta, 0.01);
-                    setDelayContents(container, animation.frames[index].delay);
+                    animation.frames.items[index].delay = @max(delay + delta, 0.01);
+                    setDelayContents(container, animation.frames.items[index].delay);
                 }
             },
             else => {},
@@ -661,7 +661,7 @@ fn setSelectedAnimation(self: *Self, container: *Container, object: *canvas.Obje
 
 fn setSelectedDelay(self: Self, delay: f32) void {
     const animation = self.selected_animation orelse return;
-    animation.frames[self.selected_frame].delay = delay;
+    animation.frames.items[self.selected_frame].delay = delay;
 }
 
 fn setDelayContents(container: *Container, delay: f32) void {

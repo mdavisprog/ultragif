@@ -10,12 +10,12 @@ const Texture = TextureCache.Texture;
 const Self = @This();
 
 texture: *Texture,
-frames: []Frame,
+frames: std.ArrayListUnmanaged(Frame),
 
 pub fn init(allocator: std.mem.Allocator, texture: *Texture) !Self {
     return .{
         .texture = texture,
-        .frames = try allocator.dupe(Frame, texture.sheet.frames),
+        .frames = .fromOwnedSlice(try allocator.dupe(Frame, texture.sheet.frames)),
     };
 }
 
@@ -28,7 +28,7 @@ pub fn drawElapsed(self: Self, position: raylib.Vector2, elapsed: f32) void {
     var total: f32 = 0.0;
     var bounds_index: usize = 0;
 
-    for (self.frames) |frame| {
+    for (self.frames.items) |frame| {
         if (elapsed <= total) {
             bounds_index = frame.bounds_index;
             break;
@@ -69,19 +69,19 @@ pub fn clone(self: *Self, allocator: std.mem.Allocator) !*anyopaque {
     const cloned = try allocator.create(Self);
     cloned.* = .{
         .texture = self.texture,
-        .frames = try allocator.dupe(Frame, self.frames),
+        .frames = try self.frames.clone(allocator),
     };
     return cloned;
 }
 
 pub fn cleanup(self: *Self, allocator: std.mem.Allocator) void {
-    allocator.free(self.frames);
+    self.frames.deinit(allocator);
 }
 
 pub fn totalTime(self: Self) f32 {
     var result: f32 = 0.0;
 
-    for (self.frames) |frame| {
+    for (self.frames.items) |frame| {
         result += frame.delay;
     }
 
