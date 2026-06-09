@@ -21,15 +21,20 @@ const AnimOption = enum {
 
     fn asMenuItems() []const []const u8 {
         return &.{
-            AnimOption.clone.str(),
-            AnimOption.delete.str(),
+            "Clone",
+            "Delete",
         };
     }
+};
 
-    fn str(comptime self: AnimOption) []const u8 {
-        return switch (self) {
-            .clone => "Clone",
-            .delete => "Delete",
+const FrameOption = enum {
+    clone,
+    delete,
+
+    fn anMenuItems() []const []const u8 {
+        return &.{
+            "Clone",
+            "Delete",
         };
     }
 };
@@ -47,7 +52,7 @@ const timeline_name_font_size: u16 = 18;
 const Self = @This();
 
 selected_animation: ?*canvas.Animation = null,
-selected_frame: usize = 0,
+selected_frame: ?usize = null,
 interaction: Interaction = .none,
 name_column_size: f32 = 150.0,
 
@@ -580,6 +585,7 @@ fn drawFrame(
 
     clay.openElement();
 
+    const hovered = clay.hovered();
     const border_color: clay.Color = blk: {
         const highlight_color: clay.Color = .initu8(255, 255, 0, 255);
 
@@ -588,15 +594,25 @@ fn drawFrame(
             break :blk if (self.isFrameSelected(animation, index)) highlight_color else .black;
         }
 
-        if (clay.hovered() or self.isFrameSelected(animation, index)) {
+        if (hovered or self.isFrameSelected(animation, index)) {
             break :blk .initu8(255, 255, 0, 255);
         }
 
         break :blk .black;
     };
 
-    if (clay.hovered()) {
+    if (hovered) {
+        var selected = false;
         if (raylib.isMouseButtonPressed(.left)) {
+            selected = true;
+        }
+
+        if (raylib.isMouseButtonPressed(.right)) {
+            selected = true;
+            container.popup.openMenu(.mouse, FrameOption.anMenuItems(), onFrameOption);
+        }
+
+        if (selected) {
             self.setSelectedAnimation(container, object);
             self.selected_frame = index;
             setDelayContents(container, frame.delay);
@@ -645,13 +661,31 @@ fn drawFrame(
     clay.closeElement();
 }
 
+fn onFrameOption(index: usize, container: *Container) void {
+    const animation = container.timeline.selected_animation orelse return;
+    const frame = container.timeline.selected_frame orelse return;
+
+    const option: FrameOption = @enumFromInt(index);
+    switch (option) {
+        .clone => {
+            animation.cloneFrame(container.state.getAllocator(), frame) catch |err| {
+                std.debug.panic("Failed to clone frame: {}", .{err});
+            };
+        },
+        .delete => {
+            animation.deleteFrame(frame);
+        },
+    }
+}
+
 fn isSelected(self: Self, animation: *const canvas.Animation) bool {
     const selected = self.selected_animation orelse return false;
     return selected == animation;
 }
 
 fn isFrameSelected(self: Self, animation: *const canvas.Animation, index: usize) bool {
-    return self.isSelected(animation) and self.selected_frame == index;
+    const selected_frame = self.selected_frame orelse return false;
+    return self.isSelected(animation) and selected_frame == index;
 }
 
 fn setSelectedAnimation(self: *Self, container: *Container, object: *canvas.Object) void {
@@ -661,7 +695,8 @@ fn setSelectedAnimation(self: *Self, container: *Container, object: *canvas.Obje
 
 fn setSelectedDelay(self: Self, delay: f32) void {
     const animation = self.selected_animation orelse return;
-    animation.frames.items[self.selected_frame].delay = delay;
+    const selected_frame = self.selected_frame orelse return;
+    animation.frames.items[selected_frame].delay = delay;
 }
 
 fn setDelayContents(container: *Container, delay: f32) void {

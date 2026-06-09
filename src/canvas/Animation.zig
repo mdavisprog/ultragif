@@ -24,6 +24,17 @@ pub fn set(self: *Self, texture: *Texture) void {
     self.reset();
 }
 
+pub fn cloneFrame(self: *Self, allocator: std.mem.Allocator, index: usize) !void {
+    if (index >= self.frames.items.len) return;
+    const frame = self.frames.items[index];
+    try self.frames.insert(allocator, index, frame);
+}
+
+pub fn deleteFrame(self: *Self, index: usize) void {
+    if (index >= self.frames.items.len) return;
+    _ = self.frames.orderedRemove(index);
+}
+
 pub fn drawElapsed(self: Self, position: raylib.Vector2, elapsed: f32) void {
     var total: f32 = 0.0;
     var bounds_index: usize = 0;
