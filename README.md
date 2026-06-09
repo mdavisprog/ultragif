@@ -1,5 +1,5 @@
 # UltraGIF
-Latest release is [v0.2.0](https://github.com/mdavisprog/ultragif/releases/tag/v0.2.0).
+Latest release is [v0.3.0](https://github.com/mdavisprog/ultragif/releases/tag/v0.3.0).
 
 [Wiki](https://github.com/mdavisprog/ultragif/wiki).
 
@@ -7,7 +7,7 @@ UltraGIF is an application to view, edit, and combine multiple GIFs into a singl
 GIF can be organized on the canvas. Each frame's delay can be changed to alter the timings for each
 animated GIF in the scene.
 
-![Example](https://github.com/mdavisprog/ultragif/wiki/images/example.gif)
+![Example](https://github.com/mdavisprog/ultragif/wiki/images/example.png)
 
 The above scene is exported as:
 
